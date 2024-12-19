@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import axios from "axios";
-import SwipeComponet from "../components/SwipeComponet";
+import SwipeComponent from "../components/SwipeComponent";
 import { useAuth } from "../context/AuthContext";
 
 export default function Library() {
@@ -80,7 +80,7 @@ export default function Library() {
         <div className="top-section">
           <h2 className="sec-title">Music Video</h2>
           {recommendations_MusicVideo.length > 0 ? (
-            <SwipeComponet 
+            <SwipeComponent 
               arr={recommendations_MusicVideo} 
               recommId={recommendations_MusicVideo[0]?.recommId}
             />
@@ -90,7 +90,7 @@ export default function Library() {
 
           <h2 className="sec-title">Meditation</h2>
           {recommendations_Meditation.length > 0 ? (
-            <SwipeComponet 
+            <SwipeComponent 
               arr={recommendations_Meditation}
               recommId={recommendations_Meditation[0]?.recommId}
             />
@@ -100,7 +100,7 @@ export default function Library() {
 
           <h2 className="sec-title">Studio Recording</h2>
           {recommendations_StudioRecording.length > 0 ? (
-            <SwipeComponet 
+            <SwipeComponent 
               arr={recommendations_StudioRecording}
               recommId={recommendations_StudioRecording[0]?.recommId}
             />

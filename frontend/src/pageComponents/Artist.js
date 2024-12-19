@@ -10,7 +10,7 @@ import Thanks from "../assets/thanks.svg";
 import Thumb from "../assets/playlist.jpg";
 import TrackLike from "../assets/track-like.svg";
 import axios from "axios";
-import SwipeComponet from "../components/SwipeComponet";
+import SwipeComponent from "../components/SwipeComponent";
 import SwipeEventComponet from "../components/lirbary/SwipeEventComponet";
 import BackButton from "../components/common/BackButton";
 import PlayButton from "../components/common/PlayButton";
@@ -224,7 +224,7 @@ export default function Artist() {
             Audio
           </button>
         </Tabs>
-        <SwipeComponet arr={contents}></SwipeComponet>
+        <SwipeComponent arr={contents}></SwipeComponent>
       </SectionContainer>
 
       <SectionContainer>
