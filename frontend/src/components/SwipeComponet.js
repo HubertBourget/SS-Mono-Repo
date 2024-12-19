@@ -83,9 +83,12 @@ const trackDetailView = async (itemId, recommId) => {
   }
 };
 
-const handleClick = async (content) => {
-  await trackDetailView(content._id, content.recommId);
+const handleContentPlay = (content) => {
+  console.log('Content play handler for:', content.title);
+};
 
+const handleArtistClick = async (content, e) => {
+  e.stopPropagation(); // Prevent event bubbling
   const artistEmail = content.owner?.toLowerCase();
   const artistData = artistNames[artistEmail];
 
@@ -126,23 +129,14 @@ const handleClick = async (content) => {
 
   return (
     <SwiperSlide key={content._id}>
-      <div className="item" id="content-card" onClick={() => handleClick(content)} style={{ cursor: 'pointer' }}>
+      <div className="item" id="content-card" onClick={() => handleContentPlay(content)} style={{ cursor: 'pointer' }}>
         <img className="swiper-thumb-img" src={thumbnail} alt="Item Thumb" />
         <div style={{ marginLeft: 0, display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
           <div>
             <h1 className="slider-trackname">{content.contentType !== 'AlbumMetaData' ? content.title : content.albumName}</h1>
             <h1 className="slider-artist">
               <span
-                onClick={(e) => {
-                  e.stopPropagation(); // Stop propagation to prevent parent click
-                  const artistEmail = content.owner?.toLowerCase();
-                  const artistData = artistNames[artistEmail];
-                  if (artistData?.id) {
-                    navigate(`/main/artist?id=${artistData.id}`); // Navigate to artist page
-                  } else {
-                    console.log('Artist ID not found.');
-                  }
-                }}
+                onClick={(e) => handleArtistClick(content, e)}
                 style={{ textDecoration: 'underline', cursor: 'pointer' }}
               >
                 {artistNames[content.owner?.toLowerCase()]?.accountName || 'Unknown Artist'}
