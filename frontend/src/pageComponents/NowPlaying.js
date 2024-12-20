@@ -92,6 +92,7 @@ function NowPlaying({ children }) {
 
           const songResponse = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/getVideoMetaDataFromObjectId/${recommendedId}`);
           const songData = songResponse.data;
+          console.log('songData:', songData);
 
           setSongs([songData]);
         }
