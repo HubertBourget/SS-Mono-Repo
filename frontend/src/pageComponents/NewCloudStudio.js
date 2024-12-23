@@ -298,7 +298,7 @@ const [trackDetails, setTrackDetails] = useState([]);
 
     return (
         <MainContainer>
-            <HeaderContainer>
+            {!isUploadActive && <HeaderContainer>
                 <HeaderLeft>
                     {!isUploadActive && (
                         <Logo>
@@ -318,10 +318,10 @@ const [trackDetails, setTrackDetails] = useState([]);
                         </UploadAndAccountDiv>
                     )}                   
                 </HeaderRight>
-            </HeaderContainer>
+            </HeaderContainer>}
             
             <FlexContainer>
-                <NavigationPanel>
+                {!isUploadActive && <NavigationPanel>
                     <NavigationButton onClick={() => handleSectionChange('component1', false)} active={activeComponent === 'component1'}>
                         <img src={DashboardIcon} alt="Upload" style={{ marginRight: '8px'}}/>
                         Dashboard
@@ -345,7 +345,7 @@ const [trackDetails, setTrackDetails] = useState([]);
                     </NavigationButton>
 
                     <BottomNavigationPanel/>
-                </NavigationPanel>
+                </NavigationPanel>}
                 <ScrollableFlexThree isUploadActive={isUploadActive}>
                     {activeComponent === "component1" && userEmail && <Dashboard user={userEmail.toString()} />}
                     {activeComponent === "component2" && userEmail&& <ContentTab user={userEmail.toString()} />}
@@ -536,7 +536,7 @@ const CloseButton = styled.button`
     border: none;
     cursor: pointer;
     border-radius: 5px;
-    font-size: 18px;
+    font-size: 16px;
     color: rgb(67, 66, 137);
     text-decoration: underline;
     margin-left: 3vw;
@@ -548,6 +548,6 @@ const TopHeaderSection = styled.div`
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    box-shadow: 0px 4px 4px -2px rgba(0,0,0,0.3);
+    box-shadow: 0px 2px 2px -2px rgba(0,0,0,0.3);
     align-items: center;
 `;

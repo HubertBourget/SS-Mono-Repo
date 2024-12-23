@@ -1,11 +1,12 @@
 const express = require("express");
-const cors = require('cors');
+const cors = require("cors");
 const bodyParser = require("body-parser");
-const cookieParser = require('cookie-parser');
+const cookieParser = require("cookie-parser");
 const PORT = process.env.PORT || 8000;
 
 const {
   getServerHomePage,
+  uploadVideo,
   postContentMetaData,
   getPreReviewedVideoList,
   updateContentMetaData,
@@ -94,10 +95,19 @@ const {
   resetPassword,
 } = require("./handlers");
 
-const {
-    CreateImageThumbnail,
-} = require("./controllers/ThumbnailController");
+const { CreateImageThumbnail } = require("./controllers/ThumbnailController");
 
+const multer = require("multer");
+const fs = require("fs");
+
+// Multer configuration for in-memory storage
+const upload = multer({ dest: "uploads/" });
+const ensureDir = (dir) => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+};
+ensureDir('processed');
 
 express()
   .use(cors({
@@ -106,9 +116,10 @@ express()
     credentials: true, // Allow credentials (cookies)
   }))
   .use(express.json())
-  .use(bodyParser.json())
+  .use(bodyParser.json({}))
   .use(cookieParser())
   .get("/", getServerHomePage)
+  .post("/upload/video", upload.single("video"), uploadVideo)
   .post("/api/postContentMetaData", postContentMetaData)
   .get("/api/getPreReviewedVideoList", getPreReviewedVideoList)
   .post("/api/updateContentMetaData", updateContentMetaData)

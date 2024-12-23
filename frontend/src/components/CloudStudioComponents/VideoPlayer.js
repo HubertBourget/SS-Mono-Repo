@@ -1,12 +1,13 @@
-import React, { useEffect, useState, useRef } from 'react';
-import styled from 'styled-components';
-import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
-import { useAuth } from '../../context/AuthContext'; // Import your custom useAuth hook
+import React, { useEffect, useState, useRef } from "react";
+import styled from "styled-components";
+import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import { useAuth } from "../../context/AuthContext"; // Import your custom useAuth hook
 
 const VideoPlayer = () => {
   const { videoId } = useParams();
   const [videoData, setVideoData] = useState(null);
+  const [newvideoData, setNewVideoData] = useState(null);
   const [intervalId, setIntervalId] = useState(null);
   const navigate = useNavigate();
   const [recommendations, setRecommendations] = useState([]);
@@ -54,11 +55,16 @@ const VideoPlayer = () => {
   useEffect(() => {
     const fetchVideoData = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/getVideoMetadataFromVideoId/${videoId}`);
-        setVideoData(response.data);
+        const response = await axios.get(
+          `${process.env.REACT_APP_API_BASE_URL}/api/getVideoMetadataFromVideoId/${videoId}`
+        );
+        setNewVideoData(response.data);
       } catch (error) {
-        setVideoData({ fileUrl: 'https://firebasestorage.googleapis.com/v0/b/sacred-music-60ce6.appspot.com/o/Uploads%2Fdebug9%40debug.com%2F0bd405a9-e8c4-4386-9b87-51e010593682?alt=media&token=ca7758e2-59f7-4378-9aab-31e4cd2ddf93' });
-        console.error('Error fetching video data:', error);
+        setNewVideoData({
+          fileUrl:
+            "https://firebasestorage.googleapis.com/v0/b/sacred-music-60ce6.appspot.com/o/Uploads%2Fdebug9%40debug.com%2F0bd405a9-e8c4-4386-9b87-51e010593682?alt=media&token=ca7758e2-59f7-4378-9aab-31e4cd2ddf93",
+        });
+        console.error("Error fetching video data:", error);
       }
     };
 
@@ -82,6 +88,99 @@ const VideoPlayer = () => {
 
     fetchItemToItemRecommendations();
   }, [videoId, userEmail]);
+
+  const [quality, setQuality] = useState(360);
+
+  // Function to detect network speed and set quality
+  const detectNetworkSpeedAndSetQuality = () => {
+    const connection =
+      navigator.connection ||
+      navigator.mozConnection ||
+      navigator.webkitConnection;
+
+    if (connection) {
+      // Adjust quality based on network speed
+      if (connection.effectiveType === "5g" || connection.downlink >= 10) {
+        setQuality(1080);
+      } else if (
+        connection.effectiveType === "4g" ||
+        connection.downlink >= 3
+      ) {
+        setQuality(720);
+      } else if (
+        connection.effectiveType === "3g" ||
+        connection.downlink >= 1.5
+      ) {
+        setQuality(360);
+      } else if (
+        connection.effectiveType === "2g" ||
+        connection.downlink >= 0.5
+      ) {
+        setQuality(240);
+      } else {
+        setQuality(240);
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Initial video
+    if(newvideoData && newvideoData?.fileUrl){
+
+      if(Array.isArray(newvideoData?.fileUrl)){
+          const item = newvideoData.fileUrl.find((item) => {
+            return item.quality == quality
+          })
+          if(videoData?.fileUrl != item.url){
+            setVideoData({fileUrl: item.url});
+          }
+
+      }else{
+        setVideoData({fileUrl:newvideoData?.fileUrl})
+      }
+    }
+  }, [quality,newvideoData]);
+
+  useEffect(() => {
+    if (videoData && videoData.fileUrl) {
+      if (videoRef.current) {
+        const wasPlaying = !videoRef.current.paused;
+        const currentTime = videoRef.current.currentTime;
+  
+        // Reload the video whenever the URL changes
+        videoRef.current.load();
+  
+        // After loading, set the time back to where it was
+        videoRef.current.currentTime = currentTime;
+  
+        // If the video was playing, resume playing
+        if (wasPlaying) {
+          videoRef.current.play();
+        }
+      }
+    }
+  }, [videoData]);
+
+  useEffect(() => {
+    // Detect network quality on initial load
+    detectNetworkSpeedAndSetQuality();
+
+    // Optionally monitor network changes
+    const connection =
+      navigator.connection ||
+      navigator.mozConnection ||
+      navigator.webkitConnection;
+
+    if (connection) {
+      connection.addEventListener("change", detectNetworkSpeedAndSetQuality);
+      return () => {
+        connection.removeEventListener(
+          "change",
+          detectNetworkSpeedAndSetQuality
+        );
+      };
+    }
+  }, [quality]);
 
   if (!videoData) {
     return <div>Loading...</div>;
