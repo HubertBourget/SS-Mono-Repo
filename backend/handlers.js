@@ -3060,28 +3060,46 @@ const updateTrackViews = async (req, res) => {
         const db = client.db("db-name");
         const collection = db.collection("ContentMetaData");
 
-        const query = { videoId: videoId };
-        const update = { 
-            $inc: { views: 1 },  // Increment views by 1
-            $setOnInsert: { views: 1 }  // If views field doesn't exist, initialize it to 1
-        };
-        const options = { 
-            returnOriginal: false,
-            upsert: true  // Create views field if it doesn't exist
-        };
-
-        const result = await collection.findOneAndUpdate(query, update, options);
+        const result = await collection.findOneAndUpdate(
+            { videoId: videoId },
+            [
+                {
+                    $set: {
+                        views: {
+                            $cond: {
+                                if: { $exists: ["$views"] },
+                                then: { $add: ["$views", 1] },
+                                else: 1
+                            }
+                        }
+                    }
+                }
+            ],
+            { 
+                returnDocument: 'after',
+                upsert: false
+            }
+        );
 
         if (!result.value) {
-            return res.status(404).json({ error: "No document found with that videoId" });
+            return res.status(404).json({ 
+                status: 404,
+                error: "No document found with that videoId" 
+            });
         }
 
-        return res.status(200).json({ status: 200, result: result.value });
+        return res.status(200).json({ 
+            status: 200, 
+            data: result.value 
+        });
+
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({ error: error.message });
-    } finally {
-        client.close();
+        console.error("Error in updateTrackViews:", error);
+        return res.status(500).json({ 
+            status: 500,
+            error: "Internal server error",
+            details: error.message 
+        });
     }
 };
 
