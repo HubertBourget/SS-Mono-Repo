@@ -491,28 +491,117 @@ const getContentByArtist = async (req, res) => {
     }
 };
 
-const getFeaturedByArtist = async (req, res) => {
+const getMostPlayedTracksByArtist = async (req, res) => {
     const client = await new MongoClient(MONGO_URI, options);
 
     try {
         const { artistId } = req.query;
         if (!artistId) {
-        return res.status(400).json({ message: 'Missing artistId parameter' });
+            return res.status(400).json({ message: 'Missing artistId parameter' });
         }
+
         await client.connect();
         const collection = client.db('db-name').collection('ContentMetaData');
-        // const contentDocuments = await collection.find({ owner: artistId, isFeatured: true }).toArray();
-        const contentDocuments = await collection.aggregate([
-            {$match: {owner: artistId, isFeatured: true}},
-            {$lookup: {
-                from: 'userAccounts',
-                localField: 'owner',
-                foreignField: 'email',
-                as: 'user'
-            }},
-            {$unwind: '$user'}
-        ]).toArray()
-        res.json(contentDocuments);
+        
+        // First get all tracks with views
+        let tracksWithViews = await collection.aggregate([
+            { 
+                $match: { 
+                    owner: artistId,
+                    views: { $exists: true, $ne: null }
+                }
+            },
+            {
+                $lookup: {
+                    from: 'userAccounts',
+                    localField: 'owner',
+                    foreignField: 'email',
+                    as: 'user'
+                }
+            },
+            { $unwind: '$user' },
+            { $sort: { views: -1 } }
+        ]).toArray();
+
+        // If we have 3 or more tracks with views, just take the top 3
+        if (tracksWithViews.length >= 3) {
+            return res.status(200).json({ 
+                status: 200, 
+                message: "Top viewed tracks fetched successfully", 
+                tracks: tracksWithViews.slice(0, 3) 
+            });
+        }
+
+        // If we have some tracks with views but less than 3,
+        // get additional tracks without views to complete the set
+        const remainingNeeded = 3 - tracksWithViews.length;
+        if (remainingNeeded > 0) {
+            const tracksWithoutViews = await collection.aggregate([
+                { 
+                    $match: { 
+                        owner: artistId,
+                        $or: [
+                            { views: { $exists: false } },
+                            { views: null }
+                        ]
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'userAccounts',
+                        localField: 'owner',
+                        foreignField: 'email',
+                        as: 'user'
+                    }
+                },
+                { $unwind: '$user' },
+                { $limit: remainingNeeded }
+            ]).toArray();
+
+            // Combine the tracks with views and without views
+            const combinedTracks = [...tracksWithViews, ...tracksWithoutViews];
+
+            return res.status(200).json({ 
+                status: 200, 
+                message: "Mixed tracks fetched successfully", 
+                tracks: combinedTracks 
+            });
+        }
+
+        // If we get here and tracksWithViews is empty, get any 3 tracks
+        if (tracksWithViews.length === 0) {
+            const anyTracks = await collection.aggregate([
+                { 
+                    $match: { 
+                        owner: artistId
+                    }
+                },
+                {
+                    $lookup: {
+                        from: 'userAccounts',
+                        localField: 'owner',
+                        foreignField: 'email',
+                        as: 'user'
+                    }
+                },
+                { $unwind: '$user' },
+                { $limit: 3 }
+            ]).toArray();
+
+            return res.status(200).json({ 
+                status: 200, 
+                message: "Random tracks fetched successfully", 
+                tracks: anyTracks 
+            });
+        }
+
+        // If we get here, just return whatever tracks with views we found
+        return res.status(200).json({ 
+            status: 200, 
+            message: "Partial tracks fetched successfully", 
+            tracks: tracksWithViews 
+        });
+
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Server error' });
@@ -3142,7 +3231,7 @@ module.exports = {
     getAlbumById,
     deleteAlbum,
     postNewContentTypePropertyWithAttributes,
-    getFeaturedByArtist,
+    getMostPlayedTracksByArtist,
     // getAllContent,
     getUserProfileById,
     addTrackToAlbum,

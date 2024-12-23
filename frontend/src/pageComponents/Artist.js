@@ -6,6 +6,7 @@ import Share from "../assets/share-android.svg";
 import PersonAdd from "../assets/person-add-outline.svg";
 import Play from "../assets/playicon.svg";
 import Shuffle from "../assets/Shuffle-blue.svg";
+import ArtistLink from "../assets/ArtistLink.png";
 import Thanks from "../assets/thanks.svg";
 import Thumb from "../assets/playlist.jpg";
 import TrackLike from "../assets/track-like.svg";
@@ -19,10 +20,11 @@ import { useAuth } from '../context/AuthContext'; // Import your custom useAuth 
 
 export default function Artist() {
   const [artist, setArtist] = useState({});
-  const [featured, setFeatured] = useState([]);
+  const [mostPlayed, setMostPlayed] = useState([]);
   const [tab, setTab] = useState(0);
   const [contents, setContent] = useState([]);
   const [events, setEvents] = useState([]);
+  const [showFullBio, setShowFullBio] = useState(false);
   const { userEmail } = useAuth(); // Use the custom hook to get the user's email
 
   async function fetchArtist() {
@@ -40,7 +42,7 @@ export default function Artist() {
 
   useEffect(() => {
     fetchEvents();
-    fetchFeatured();
+    fetchMostPlayed();
   }, [artist]);
 
   useEffect(() => {
@@ -83,13 +85,14 @@ export default function Artist() {
     }
   };
 
-  const fetchFeatured = async () => {
+  const fetchMostPlayed = async () => {
     try {
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/getFeaturedByArtist?artistId=${artist.email}`;
+      let url = `${process.env.REACT_APP_API_BASE_URL}/api/getMostPlayedTracksByArtist?artistId=${artist.email}`;
 
       const response = await axios.get(url);
       if (response.status === 200) {
-        setFeatured(response.data);
+        console.log("fetchMostPlayed response.data", response.data);
+        setMostPlayed(response.data.tracks);
       } else {
         console.error(`Request failed with status: ${response.status}`);
       }
@@ -126,20 +129,41 @@ export default function Artist() {
             <img src={artist.profileImageUrl} alt="not loaded"></img>
             <div className="artist-info">
               <span>Artist</span>
-              <h3>{artist.artistTitle}</h3>
+              <h3>{artist.accountName}</h3>
               <span># Followers</span>
             </div>
           </ProfileImage>
           <HeadAction>
-            <img src={PersonAdd} alt="not loaded"></img>
-            <img src={Share} alt="not loaded"></img>
+            <img src={PersonAdd} alt=""></img>
+            <img src={Share} alt="Share"></img>
           </HeadAction>
         </HeadProfile>
       </HeadPart>
 
       <MusicInfo>
         <div>
-          <h5 className="music-disc">{artist.bio}</h5>
+          <div className="bio-container">
+            {artist.bio && (
+              <>
+                <h5 className={`music-disc ${!showFullBio ? 'truncated' : ''}`}>
+                  {artist.bio}
+                </h5>
+                {artist.bio.length > 100 && (
+                  <button className="show-more" onClick={() => setShowFullBio(!showFullBio)}>
+                    {showFullBio ? 'Show less' : 'Show more'}
+                  </button>
+                )}
+              </>
+            )}
+            {artist.artistLink && (showFullBio || !artist.bio) && (
+              <div className="artist-link">
+                <img src={ArtistLink} alt="artist link" />
+                <a href={artist.artistLink} target="_blank" rel="noopener noreferrer">
+                  {artist.artistLink}
+                </a>
+              </div>
+            )}
+          </div>
         </div>
         <div className="music-play">
           <div className="music-icons">
@@ -159,10 +183,10 @@ export default function Artist() {
 
       <SectionContainer>
         <HeadingText>
-          <h1>Featured tracks</h1>
+          <h1>Most Played Tracks</h1>
         </HeadingText>
-        <FeaturedTracks>
-          {featured.map((element, index) => (
+        <MostPlayedTracks>
+          {mostPlayed.map((element, index) => (
             <div className="track-bar active" key={element._id}>
               <div className="track-left">
                 <div className="icon-number">
@@ -188,16 +212,20 @@ export default function Artist() {
                 ></img>
                 <div className="flex-line">
                   <h5 className="track-title">{element.title}</h5>
-                  <h5 className="album-title">Album title</h5>
+                  <h5 className="album-title">
+                    {element.views ? `${element.views} views` : 'New'}
+                  </h5>
                 </div>
               </div>
               <div className="track-right">
-                <h5 className="track-time">02:36</h5>
+                <h5 className="track-time">
+                  {element.duration || '00:00'}
+                </h5>
                 <img src={TrackLike} alt="track-like"></img>
               </div>
             </div>
           ))}
-        </FeaturedTracks>
+        </MostPlayedTracks>
       </SectionContainer>
 
       <SectionContainer>
@@ -241,6 +269,7 @@ export default function Artist() {
 
 const Events = styled.div``;
 const MainContainer = styled.div`
+background-color: #fff;
   margin: 0;
   padding: 0;
   width: 100%;
@@ -376,10 +405,21 @@ const MusicInfo = styled.div`
       padding-right: 0px;
     }
   }
+  .bio-container {
+    position: relative;
+  }
   .music-disc {
     font-size: 18px;
     font-weight: 300;
     margin: 0;
+    
+    &.truncated {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    
     @media (max-width: 575px) {
       font-size: 14px;
     }
@@ -440,6 +480,38 @@ const MusicInfo = styled.div`
       cursor: pointer;
     }
   }
+  .show-more {
+    background: none;
+    border: none;
+    color: #434289;
+    padding: 0;
+    margin-top: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: underline;
+  }
+  .artist-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+    
+    img {
+      width: 20px;
+      height: 20px;
+    }
+
+    a {
+      color: #434289;
+      text-decoration: none;
+      font-size: 14px;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
 `;
 
 const HeadingText = styled.div`
@@ -449,7 +521,7 @@ const HeadingText = styled.div`
   }
 `;
 
-const FeaturedTracks = styled.div`
+const MostPlayedTracks = styled.div`
   padding: 20px;
   .track-bar {
     padding: 10px;

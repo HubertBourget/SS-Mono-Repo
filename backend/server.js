@@ -52,7 +52,7 @@ const {
   deleteAlbum,
   postNewContentTypePropertyWithAttributes,
   getUserProfileById,
-  getFeaturedByArtist,
+  getMostPlayedTracksByArtist,
   addTrackToAlbum,
   getAlbum,
   getTrack,
@@ -123,7 +123,7 @@ express()
   .get("/api/b_getUserExist/:userId", b_getUserExist)
   .post("/api/postNewUserWithAccountName", postNewUserWithAccountName)
   .get("/api/getContentByArtist", getContentByArtist)
-  .get("/api/getFeaturedByArtist", getFeaturedByArtist)
+  .get("/api/getMostPlayedTracksByArtist", getMostPlayedTracksByArtist)
   .get("/api/getApprovedVideoContent", getApprovedVideoContent)
   .delete("/api/deleteContent", deleteContent)
   .post("/api/postNewAlbum", postNewAlbum)

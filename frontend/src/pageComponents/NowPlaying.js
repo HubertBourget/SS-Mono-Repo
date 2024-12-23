@@ -7,6 +7,7 @@ import { Outlet } from "react-router-dom";
 import axios from "axios";
 import MediaControl from "../components/MediaControl";
 import { useAuth } from '../context/AuthContext';
+import { debounce } from 'lodash';
 
 const NowPlayingContext = createContext({});
 
@@ -122,16 +123,23 @@ function NowPlaying({ children }) {
     }
   };
 
-  const trackViewInteraction = async (videoId) => {
-    try {
-      await axios.patch(
-        `${process.env.REACT_APP_API_BASE_URL}/api/updateTrackViews/${videoId}`
-      );
-      viewLoggedRef.current = true;
-    } catch (error) {
-      console.error('Error updating view count:', error);
-    }
-  };
+  // Create debounced version of trackViewInteraction
+  const debouncedTrackView = useRef(
+    debounce(async (videoId) => {
+      if (viewLoggedRef.current) return;
+      
+      try {
+        viewLoggedRef.current = true;
+        await axios.patch(
+          `${process.env.REACT_APP_API_BASE_URL}/api/updateTrackViews/${videoId}`
+        );
+        console.log('View logged successfully');
+      } catch (error) {
+        console.error('Error updating view count:', error);
+        viewLoggedRef.current = false;
+      }
+    }, 1000) // 1 second delay
+  ).current;
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
@@ -139,17 +147,29 @@ function NowPlaying({ children }) {
       const duration = audioRef.current.duration;
       const percentagePlayed = (currentTime / duration) * 100;
       
-      if (percentagePlayed >= 90 && !purchaseLoggedRef.current) {
+      if (percentagePlayed >= 90) {
         const currentState = stateRef.current;
         const currentSong = currentState.song[currentState.currentSongIndex];
         
         if (currentSong) {
-          trackPurchaseInteraction(currentSong);
-          trackViewInteraction(currentSong.videoId);
+          // Use debounced function for view tracking
+          debouncedTrackView(currentSong.videoId);
+          
+          // Track purchase if not already logged
+          if (!purchaseLoggedRef.current) {
+            trackPurchaseInteraction(currentSong);
+          }
         }
       }
     }
   };
+
+  // Clean up debounced function on component unmount
+  useEffect(() => {
+    return () => {
+      debouncedTrackView.cancel();
+    };
+  }, [debouncedTrackView]);
 
   // Reset the purchase logged flag when song changes
   useEffect(() => {
