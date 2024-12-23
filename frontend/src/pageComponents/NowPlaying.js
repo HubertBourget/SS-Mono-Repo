@@ -104,6 +104,23 @@ function NowPlaying({ children }) {
     fetchInitialRecommendation();
   }, [userEmail, audioRef]);
 
+  const trackPurchaseInteraction = async (currentSong) => {
+    try {
+      await axios.post(
+        `${process.env.REACT_APP_API_BASE_URL}/api/trackInteraction`,
+        {
+          userId: userEmail,
+          itemId: currentSong.videoId,
+          type: 'purchase',
+          recommId: currentSong.recommId
+        }
+      );
+      purchaseLoggedRef.current = true;
+    } catch (error) {
+      console.error('Error sending purchase interaction:', error);
+    }
+  };
+
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       const currentTime = audioRef.current.currentTime;
@@ -115,24 +132,7 @@ function NowPlaying({ children }) {
         const currentSong = currentState.song[currentState.currentSongIndex];
         
         if (currentSong) {
-          // Send interaction to backend
-          try {
-            axios.post(
-              `${process.env.REACT_APP_API_BASE_URL}/api/trackInteraction`,
-              {
-                userId: userEmail,
-                itemId: currentSong.videoId,
-                type: 'purchase',
-                // recommId is optional, can be undefined
-                recommId: currentSong.recommId
-              }
-            );
-          } catch (error) {
-            console.error('Error sending purchase interaction:', error);
-          }
-          
-          // Set flag to prevent multiple logs
-          purchaseLoggedRef.current = true;
+          trackPurchaseInteraction(currentSong);
         }
       }
     }
