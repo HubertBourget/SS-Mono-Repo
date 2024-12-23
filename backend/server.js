@@ -92,6 +92,7 @@ const {
   getUserProfileByEmails,
   requestPasswordReset,
   resetPassword,
+  updateTrackViews,
 } = require("./handlers");
 
 const {
@@ -209,6 +210,7 @@ express()
   .post("/api/postNewContentTypePropertyWithAttributes", postNewContentTypePropertyWithAttributes) //used to create the contentType property in ContentMetaData, ConcertMetaData and AlbumMetaData collection
   .get("/api/getContentDocumentsByCategory/:category", getContentDocumentsByCategory) //Database Inspection tool for Content by Category type
   .patch("/api/updateContentCategory", updateContentCategory)
+  .patch("/api/updateTrackViews/:videoId", updateTrackViews)
 
   //Mux endpoint:
   .post("/api/postCreateLiveStream", postCreateLiveStream)

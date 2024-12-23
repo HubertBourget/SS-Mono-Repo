@@ -3048,9 +3048,42 @@ const getUserProfileByEmails = async (req, res) => {
     }
 };
 
+const updateTrackViews = async (req, res) => {
+    const { videoId } = req.params;
 
+    if (!videoId) {
+        return res.status(400).json({ error: "Missing videoId parameter" });
+    }
 
+    const client = await MongoClient.connect(MONGO_URI, options);
+    try {
+        const db = client.db("db-name");
+        const collection = db.collection("ContentMetaData");
 
+        const query = { videoId: videoId };
+        const update = { 
+            $inc: { views: 1 },  // Increment views by 1
+            $setOnInsert: { views: 1 }  // If views field doesn't exist, initialize it to 1
+        };
+        const options = { 
+            returnOriginal: false,
+            upsert: true  // Create views field if it doesn't exist
+        };
+
+        const result = await collection.findOneAndUpdate(query, update, options);
+
+        if (!result.value) {
+            return res.status(404).json({ error: "No document found with that videoId" });
+        }
+
+        return res.status(200).json({ status: 200, result: result.value });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: error.message });
+    } finally {
+        client.close();
+    }
+};
 
 module.exports = {
     getServerHomePage,
@@ -3141,4 +3174,5 @@ module.exports = {
     getUserProfileByEmails,
     requestPasswordReset,
     resetPassword,
+    updateTrackViews,
 };

@@ -17,6 +17,7 @@ const MemoizedComponent = React.memo(({ children }) => {
 function NowPlaying({ children }) {
   const { userEmail } = useAuth();
   const purchaseLoggedRef = useRef(false);
+  const viewLoggedRef = useRef(false);
   const [smallScreen, setSmallScreen] = useState(true);
   const [toggle, setToggle] = useState(false);
   const handle = useFullScreenHandle();
@@ -121,6 +122,17 @@ function NowPlaying({ children }) {
     }
   };
 
+  const trackViewInteraction = async (videoId) => {
+    try {
+      await axios.patch(
+        `${process.env.REACT_APP_API_BASE_URL}/api/updateTrackViews/${videoId}`
+      );
+      viewLoggedRef.current = true;
+    } catch (error) {
+      console.error('Error updating view count:', error);
+    }
+  };
+
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       const currentTime = audioRef.current.currentTime;
@@ -133,6 +145,7 @@ function NowPlaying({ children }) {
         
         if (currentSong) {
           trackPurchaseInteraction(currentSong);
+          trackViewInteraction(currentSong.videoId);
         }
       }
     }
@@ -141,8 +154,8 @@ function NowPlaying({ children }) {
   // Reset the purchase logged flag when song changes
   useEffect(() => {
     purchaseLoggedRef.current = false;
+    viewLoggedRef.current = false;
   }, [state.currentSongIndex]);
-
 
   // Add onTimeUpdate to the audio element
   useEffect(() => {
