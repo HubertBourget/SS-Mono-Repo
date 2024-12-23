@@ -3062,19 +3062,9 @@ const updateTrackViews = async (req, res) => {
 
         const result = await collection.findOneAndUpdate(
             { videoId: videoId },
-            [
-                {
-                    $set: {
-                        views: {
-                            $cond: {
-                                if: { $exists: ["$views"] },
-                                then: { $add: ["$views", 1] },
-                                else: 1
-                            }
-                        }
-                    }
-                }
-            ],
+            { 
+                $inc: { views: 1 }  // Increment views by 1
+            },
             { 
                 returnDocument: 'after',
                 upsert: false
@@ -3100,6 +3090,8 @@ const updateTrackViews = async (req, res) => {
             error: "Internal server error",
             details: error.message 
         });
+    } finally {
+        await client.close();
     }
 };
 
