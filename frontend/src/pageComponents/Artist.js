@@ -55,33 +55,38 @@ export default function Artist() {
       if (tab === 1) type = "video";
       else if (tab === 2) type = "audio";
       else if (tab === 0) type = "album";
+      
+      // Clear content array before fetching new content
+      setContent([]);
+
       if (tab !== 0) {
-        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=${type}&artistId=${artist.email}`;
+        // Fetch videos or audio using artist._id instead of email
+        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=${type}&artistId=${artist._id}`;
 
         const response = await axios.get(url);
         if (response.status === 200) {
-          response.data = response.data.map((ele) => {
-            return { ...ele, contentType: type };
-          });
-          setContent(response.data);
-        } else {
-          console.error(`Request failed with status: ${response.status}`);
+          const formattedData = response.data.map((ele) => ({
+            ...ele,
+            contentType: type
+          }));
+          setContent(formattedData);
         }
       } else {
-        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAlbumsByArtist?artistId=${artist.email}`;
+        // Fetch albums using artist._id instead of email
+        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAlbumsByArtist?artistId=${artist._id}`;
 
         const response = await axios.get(url);
-        response.data = response.data.map((ele) => {
-          return { ...ele, contentType: type };
-        });
         if (response.status === 200) {
-          setContent(response.data);
-        } else {
-          console.error(`Request failed with status: ${response.status}`);
+          const formattedData = response.data.map((ele) => ({
+            ...ele,
+            contentType: type
+          }));
+          setContent(formattedData);
         }
       }
     } catch (error) {
       console.error(`An error occurred: ${error}`);
+      setContent([]);
     }
   };
 

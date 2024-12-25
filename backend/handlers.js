@@ -1024,50 +1024,6 @@ const getVideoMetadataFromObjectId = async (req, res) => {
     }
 };
 
-const getAlbumsByArtist = async (req, res) => {
-    const client = await new MongoClient(MONGO_URI, options);
-
-    try {
-        const { artistId } = req.query; // Assuming artistId is the email of the user
-        if (!artistId) {
-            return res.status(400).json({ message: 'Missing artistId parameter' });
-        }
-
-        await client.connect();
-        const db = client.db('db-name');
-        // Assuming 'Albums' is the collection where album data is stored
-        const albumsCollection = db.collection('AlbumMetaData');
-
-        // Find albums where the 'owner' field matches the artistId (user's email)
-        // const albums = await albumsCollection.find({ owner: artistId }).toArray();
-        const albums = await albumsCollection.aggregate([
-            {$match: { owner: artistId }},
-            {$lookup: {
-                from: 'userAccounts',
-                localField: 'owner',
-                foreignField: 'email',
-                as: 'user'
-            }},
-            {$unwind: '$user'}
-        ]).toArray()
-
-
-        if(albums.length === 0) {
-            // If no albums are found, send a message indicating such
-            return res.status(404).json({ message: 'No albums found for the given artistId' });
-        }
-
-        res.json(albums);
-    } catch (error) {
-        console.error(`An error occurred fetching albums for artistId ${artistId}:`, error);
-        return res.status(500).json({ message: 'Server error' });
-    } finally {
-        if (client) {
-            await client.close();
-        }
-    }
-};
-
 const getAlbumById = async (req, res) => {
     const client = await new MongoClient(MONGO_URI, options);
     try {
@@ -1811,21 +1767,26 @@ const getAllContent = async (req, res) => {
 
     try {
         const { type, artistId } = req.query;
-        if (!type) {
-            return res.status(400).json({ message: 'Missing type parameter' });
-        }
-        if (!artistId) {
-            return res.status(400).json({ message: 'Missing artistId parameter' });
+        if (!type || !artistId) {
+            return res.status(400).json({ message: 'Missing required parameters' });
         }
 
         await client.connect();
-        const collection = client.db('db-name').collection('ContentMetaData');
+        const db = client.db("db-name");
         
-        // Build query based on content type and artist
+        // First get the user's email using their _id
+        const userCollection = db.collection('userAccounts');
+        const user = await userCollection.findOne({ _id: new ObjectId(artistId) });
+        
+        if (!user) {
+            return res.status(404).json({ message: 'Artist not found' });
+        }
+
+        const collection = db.collection('ContentMetaData');
         const query = {
             b_isApproved: true,
-            isOnlyAudio: type === 'audio', // true for audio, false for video
-            owner: artistId // Filter by artist's email
+            isOnlyAudio: type === 'audio',
+            owner: user.email // Use the email from the found user
         };
 
         const contentDocuments = await collection.aggregate([
@@ -1842,6 +1803,37 @@ const getAllContent = async (req, res) => {
         ]).toArray();
 
         res.status(200).json(contentDocuments);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Server error' });
+    } finally {
+        client.close();
+    }
+};
+
+const getAlbumsByArtist = async (req, res) => {
+    const client = await new MongoClient(MONGO_URI, options);
+    try {
+        const { artistId } = req.query;
+        if (!artistId) {
+            return res.status(400).json({ message: 'Missing artistId parameter' });
+        }
+
+        await client.connect();
+        const db = client.db("db-name");
+        
+        // First get the user's email using their _id
+        const userCollection = db.collection('userAccounts');
+        const user = await userCollection.findOne({ _id: new ObjectId(artistId) });
+        
+        if (!user) {
+            return res.status(404).json({ message: 'Artist not found' });
+        }
+
+        const collection = db.collection('albums');
+        const albums = await collection.find({ artistId: user.email }).toArray();
+        
+        res.status(200).json(albums);
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Server error' });
