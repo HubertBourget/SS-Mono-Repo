@@ -162,7 +162,7 @@ const Upload = ({
                 formData.append('video', fileObj.data);
                 formData.append('videoId', videoId);
                 formData.append('userEmail', userEmail);
-                const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/upload/video`, formData,{ headers: { 'Content-Type': 'multipart/form-data'}})
+                const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/api/upload/video`, formData,{ headers: { 'Content-Type': 'multipart/form-data'}})
                 if(!response || !response?.data) {
                     setFileUploadStatus(prevStatus => ({
                         ...prevStatus,
