@@ -1808,29 +1808,40 @@ try {
 
 const getAllContent = async (req, res) => {
     const client = await new MongoClient(MONGO_URI, options);
-    let {type} = req.query
-    try {
-        await client.connect();
-        let match = {};
-        if(type === 'audio'){
-            match.isOnlyAudio = true
-        }else if(type === 'video'){
-            match.isOnlyAudio = false
-        } 
-        const collection = client.db('db-name').collection('ContentMetaData');
-        // const contentDocuments = await collection.find({ isOnlyAudio: type === 'audio'? true : false }).toArray();
-        const contentDocuments = await collection.aggregate([
-            {$match: match},
-            {$lookup: {
-                from: 'userAccounts',
-                localField: 'owner',
-                foreignField: 'email',
-                as: 'user'
-            }},
-            {$unwind: '$user'}
-        ]).toArray()
 
-        res.json(contentDocuments);
+    try {
+        const { type, artistId } = req.query;
+        if (!type) {
+            return res.status(400).json({ message: 'Missing type parameter' });
+        }
+        if (!artistId) {
+            return res.status(400).json({ message: 'Missing artistId parameter' });
+        }
+
+        await client.connect();
+        const collection = client.db('db-name').collection('ContentMetaData');
+        
+        // Build query based on content type and artist
+        const query = {
+            b_isApproved: true,
+            isOnlyAudio: type === 'audio', // true for audio, false for video
+            owner: artistId // Filter by artist's email
+        };
+
+        const contentDocuments = await collection.aggregate([
+            { $match: query },
+            {
+                $lookup: {
+                    from: 'userAccounts',
+                    localField: 'owner',
+                    foreignField: 'email',
+                    as: 'user'
+                }
+            },
+            { $unwind: '$user' }
+        ]).toArray();
+
+        res.status(200).json(contentDocuments);
     } catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Server error' });

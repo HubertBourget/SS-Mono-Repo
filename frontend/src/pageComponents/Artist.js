@@ -56,7 +56,7 @@ export default function Artist() {
       else if (tab === 2) type = "audio";
       else if (tab === 0) type = "album";
       if (tab !== 0) {
-        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=${type}`;
+        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=${type}&artistId=${artist.email}`;
 
         const response = await axios.get(url);
         if (response.status === 200) {
@@ -91,7 +91,6 @@ export default function Artist() {
 
       const response = await axios.get(url);
       if (response.status === 200) {
-        console.log("fetchMostPlayed response.data", response.data);
         setMostPlayed(response.data.tracks);
       } else {
         console.error(`Request failed with status: ${response.status}`);
@@ -183,7 +182,7 @@ export default function Artist() {
 
       <SectionContainer>
         <HeadingText>
-          <h1>Most Played Tracks</h1>
+          <h1>Most Played tracks</h1>
         </HeadingText>
         <MostPlayedTracks>
           {mostPlayed.map((element, index) => (
@@ -212,15 +211,11 @@ export default function Artist() {
                 ></img>
                 <div className="flex-line">
                   <h5 className="track-title">{element.title}</h5>
-                  <h5 className="album-title">
-                    {element.views ? `${element.views} views` : 'New'}
-                  </h5>
+                  <h5 className="album-title">Album title</h5>
                 </div>
               </div>
               <div className="track-right">
-                <h5 className="track-time">
-                  {element.duration || '00:00'}
-                </h5>
+                <h5 className="track-time">02:36</h5>
                 <img src={TrackLike} alt="track-like"></img>
               </div>
             </div>
