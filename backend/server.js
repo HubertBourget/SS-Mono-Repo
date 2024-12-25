@@ -93,6 +93,7 @@ const {
   requestPasswordReset,
   resetPassword,
   updateTrackViews,
+  getAllContent,
 } = require("./handlers");
 
 const {
@@ -211,6 +212,7 @@ express()
   .get("/api/getContentDocumentsByCategory/:category", getContentDocumentsByCategory) //Database Inspection tool for Content by Category type
   .patch("/api/updateContentCategory", updateContentCategory)
   .patch("/api/updateTrackViews/:videoId", updateTrackViews)
+  .get("/api/getAllContent", getAllContent)
 
   //Mux endpoint:
   .post("/api/postCreateLiveStream", postCreateLiveStream)
