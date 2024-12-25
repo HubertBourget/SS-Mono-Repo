@@ -23,9 +23,12 @@ export default function Artist() {
   const [mostPlayed, setMostPlayed] = useState([]);
   const [tab, setTab] = useState(0);
   const [contents, setContent] = useState([]);
-  const [events, setEvents] = useState([]);
+  // const [events, setEvents] = useState([]);
   const [showFullBio, setShowFullBio] = useState(false);
   const { userEmail } = useAuth(); // Use the custom hook to get the user's email
+  const [hasAlbums, setHasAlbums] = useState(false);
+  const [hasVideos, setHasVideos] = useState(false);
+  const [hasAudio, setHasAudio] = useState(false);
 
   async function fetchArtist() {
     const queryParams = new URLSearchParams(window.location.search);
@@ -41,85 +44,139 @@ export default function Artist() {
   }, []);
 
   useEffect(() => {
-    fetchEvents();
-    fetchMostPlayed();
+    if (artist?._id) {
+        // fetchEvents();
+        fetchMostPlayed();
+    }
   }, [artist]);
 
+  // First, check content types when artist changes
   useEffect(() => {
-    fetchContent();
-  }, [tab, artist]);
+    const checkContentTypes = async () => {
+        if (!artist?._id) return;
+        
+        try {
+            const [albumsRes, videosRes, audioRes] = await Promise.all([
+                axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/getAlbumsByArtist?artistId=${artist._id}`),
+                axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=video&artistId=${artist._id}`),
+                axios.get(`${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=audio&artistId=${artist._id}`)
+            ]);
+            
+            setHasAlbums(albumsRes.data.length > 0);
+            setHasVideos(videosRes.data.length > 0);
+            setHasAudio(audioRes.data.length > 0);
+        } catch (error) {
+            console.error('Error checking content types:', error);
+        }
+    };
 
+    checkContentTypes();
+  }, [artist]);
+
+  // Then, set initial tab when content types are known
+  useEffect(() => {
+    if (hasAlbums) {
+        setTab(0);
+    } else if (hasVideos) {
+        setTab(1);
+    } else if (hasAudio) {
+        setTab(2);
+    }
+  }, [hasAlbums, hasVideos, hasAudio]);
+
+  // Finally, fetch content when tab changes
   const fetchContent = async () => {
     try {
-      let type;
-      if (tab === 1) type = "video";
-      else if (tab === 2) type = "audio";
-      else if (tab === 0) type = "album";
-      
-      // Clear content array before fetching new content
-      setContent([]);
+        if (!artist?._id) return;
 
-      if (tab !== 0) {
-        // Fetch videos or audio using artist._id instead of email
-        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=${type}&artistId=${artist._id}`;
-
-        const response = await axios.get(url);
-        if (response.status === 200) {
-          const formattedData = response.data.map((ele) => ({
-            ...ele,
-            contentType: type
-          }));
-          setContent(formattedData);
-        }
-      } else {
-        // Fetch albums using artist._id instead of email
-        let url = `${process.env.REACT_APP_API_BASE_URL}/api/getAlbumsByArtist?artistId=${artist._id}`;
+        let type;
+        if (tab === 1) type = "video";
+        else if (tab === 2) type = "audio";
+        else if (tab === 0) type = "album";
+        
+        const url = tab === 0
+            ? `${process.env.REACT_APP_API_BASE_URL}/api/getAlbumsByArtist?artistId=${artist._id}`
+            : `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=${type}&artistId=${artist._id}`;
 
         const response = await axios.get(url);
+        
         if (response.status === 200) {
-          const formattedData = response.data.map((ele) => ({
-            ...ele,
-            contentType: type
-          }));
-          setContent(formattedData);
+            const formattedData = response.data.map((ele) => ({
+                ...ele,
+                contentType: type
+            }));
+            setContent(formattedData);
         }
-      }
     } catch (error) {
-      console.error(`An error occurred: ${error}`);
-      setContent([]);
+        console.error(`Error fetching content:`, error);
+        setContent([]);
     }
   };
+
+  useEffect(() => {
+    if (artist?._id && (tab === 0 || tab === 1 || tab === 2)) {
+        fetchContent();
+    }
+  }, [tab, artist?._id]); // Only depend on tab and artist ID
 
   const fetchMostPlayed = async () => {
     try {
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/getMostPlayedTracksByArtist?artistId=${artist.email}`;
+        if (!artist?._id) {
+            return;
+        }
+        
+        // Fetch both audio and video content
+        const audioUrl = `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=audio&artistId=${artist._id}`;
+        const videoUrl = `${process.env.REACT_APP_API_BASE_URL}/api/getAllContent?type=video&artistId=${artist._id}`;
+        
+        const [audioResponse, videoResponse] = await Promise.all([
+            axios.get(audioUrl),
+            axios.get(videoUrl)
+        ]);
 
-      const response = await axios.get(url);
-      if (response.status === 200) {
-        setMostPlayed(response.data.tracks);
-      } else {
-        console.error(`Request failed with status: ${response.status}`);
-      }
+        // Combine and sort all tracks
+        const allTracks = [
+            ...(audioResponse.data || []),
+            ...(videoResponse.data || [])
+        ];
+        
+        // Sort by play count and take top 5
+        const sortedTracks = allTracks
+            .sort((a, b) => (b.playCount || 0) - (a.playCount || 0))
+            .slice(0, 5);
+            
+        setMostPlayed(sortedTracks);
+        
     } catch (error) {
-      console.error(`An error occurred: ${error}`);
+        console.error(`Error fetching most played:`, error.response || error);
+        setMostPlayed([]);
     }
-  };
+};
 
-  const fetchEvents = async () => {
-    try {
-      let url = `${process.env.REACT_APP_API_BASE_URL}/api/getEvents/${artist._id}`;
+//   const fetchEvents = async () => {
+//     try {
+//         if (!artist?._id) {
+//             return;
+//         }
 
-      const response = await axios.get(url);
-      if (response.status === 200) {
-        console.log(response.data);
-        setEvents(response.data.events);
-      } else {
-        console.error(`Request failed with status: ${response.status}`);
-      }
-    } catch (error) {
-      console.error(`An error occurred: ${error}`);
-    }
-  };
+//         let url = `${process.env.REACT_APP_API_BASE_URL}/api/getEvents/${artist._id}`;
+//         const response = await axios.get(url);
+        
+//         if (response.status === 200) {
+//             setEvents(response.data.events || []);
+//         } else {
+//             setEvents([]);
+//         }
+//     } catch (error) {
+//         // If it's a 404, we just set empty events (this is an expected case)
+//         if (error.response && error.response.status === 404) {
+//             setEvents([]);
+//         } else {
+//             console.error(`Error fetching events:`, error.response || error);
+//             setEvents([]);
+//         }
+//     }
+// };
 
   return (
     <MainContainer>
@@ -185,84 +242,97 @@ export default function Artist() {
         </div>
       </MusicInfo>
 
-      <SectionContainer>
-        <HeadingText>
-          <h1>Most Played tracks</h1>
-        </HeadingText>
-        <MostPlayedTracks>
-          {mostPlayed.map((element, index) => (
-            <div className="track-bar active" key={element._id}>
-              <div className="track-left">
-                <div className="icon-number">
-                  <PlayButton
-                    track={{
-                      id: element._id,
-                      songUrl: element.fileUrl,
-                      songTitle: element.title,
-                      isVideo: false,
-                      artistName: element.user.accountName,
-                      img: element.selectedImageThumbnail,
-                    }}
-                  />
+      {mostPlayed && mostPlayed.length > 0 && (
+        <SectionContainer>
+          <HeadingText>
+            <h1>Most Played tracks</h1>
+          </HeadingText>
+          <MostPlayedTracks>
+            {mostPlayed.map((element, index) => (
+              <div className="track-bar active" key={element._id}>
+                <div className="track-left">
+                  <div className="icon-number">
+                    <PlayButton
+                      track={{
+                        id: element._id,
+                        songUrl: element.fileUrl,
+                        songTitle: element.title,
+                        isVideo: false,
+                        artistName: element.user.accountName,
+                        img: element.selectedImageThumbnail,
+                      }}
+                    />
+                  </div>
+                  <img
+                    className="track-thumb"
+                    src={
+                      element.selectedImageThumbnail
+                        ? element.selectedImageThumbnail
+                        : Thumb
+                    }
+                    alt="track-thumb"
+                  ></img>
+                  <div className="flex-line">
+                    <h5 className="track-title">{element.title}</h5>
+                    <h5 className="album-title">Album title</h5>
+                  </div>
                 </div>
-                <img
-                  className="track-thumb"
-                  src={
-                    element.selectedImageThumbnail
-                      ? element.selectedImageThumbnail
-                      : Thumb
-                  }
-                  alt="track-thumb"
-                ></img>
-                <div className="flex-line">
-                  <h5 className="track-title">{element.title}</h5>
-                  <h5 className="album-title">Album title</h5>
+                <div className="track-right">
+                  <h5 className="track-time">02:36</h5>
+                  <img src={TrackLike} alt="track-like"></img>
                 </div>
               </div>
-              <div className="track-right">
-                <h5 className="track-time">02:36</h5>
-                <img src={TrackLike} alt="track-like"></img>
-              </div>
-            </div>
-          ))}
-        </MostPlayedTracks>
-      </SectionContainer>
+            ))}
+          </MostPlayedTracks>
+        </SectionContainer>
+      )}
 
-      <SectionContainer>
-        <HeadingText>
-          <h1>Discography</h1>
-        </HeadingText>
-        <Tabs>
-          <button
-            className={`btn btn-tab ${tab === 0 ? "active" : ""}`}
-            onClick={() => setTab(0)}
-          >
-            Albums
-          </button>
-          <button
-            className={`btn btn-tab ${tab === 1 ? "active" : ""}`}
-            onClick={() => setTab(1)}
-          >
-            Videos
-          </button>
-          <button
-            className={`btn btn-tab ${tab === 2 ? "active" : ""}`}
-            onClick={() => setTab(2)}
-          >
-            Audio
-          </button>
-        </Tabs>
-        <SwipeComponent arr={contents}></SwipeComponent>
-      </SectionContainer>
+      {(hasAlbums || hasVideos || hasAudio) && (
+        <SectionContainer>
+            <HeadingText>
+                <h1>Discography</h1>
+            </HeadingText>
+            <Tabs>
+                {hasAlbums && (
+                    <button
+                        className={`btn btn-tab ${tab === 0 ? "active" : ""}`}
+                        onClick={() => setTab(0)}
+                    >
+                        Albums
+                    </button>
+                )}
+                {hasVideos && (
+                    <button
+                        className={`btn btn-tab ${tab === 1 ? "active" : ""}`}
+                        onClick={() => setTab(1)}
+                    >
+                        Videos
+                    </button>
+                )}
+                {hasAudio && (
+                    <button
+                        className={`btn btn-tab ${tab === 2 ? "active" : ""}`}
+                        onClick={() => setTab(2)}
+                    >
+                        Audio
+                    </button>
+                )}
+            </Tabs>
+            <SwipeComponent arr={contents}></SwipeComponent>
+        </SectionContainer>
+      )}
 
-      <SectionContainer>
-        <HeadingText>
-          <h1>Upcoming Events</h1>
-        </HeadingText>
-        <Events>
-          <SwipeEventComponet arr={events} />
-        </Events>
-      </SectionContainer>
+      {/* Only render Upcoming Events if there are events */}
+      {/* {hasEvents && events && events.length > 0 && (
+        <SectionContainer>
+          <HeadingText>
+            <h1>Upcoming Events</h1>
+          </HeadingText>
+          <Events>
+            <SwipeEventComponet arr={events} />
+          </Events>
+        </SectionContainer>
+      )} */}
     </MainContainer>
   );
 }
