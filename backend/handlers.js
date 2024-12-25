@@ -1806,39 +1806,38 @@ try {
     }
 };
 
-// getAllContent Endpoint disabled Sept 2024.
-// const getAllContent = async (req, res) => {
-//     const client = await new MongoClient(MONGO_URI, options);
-//     let {type} = req.query
-//     try {
-//         await client.connect();
-//         let match = {};
-//         if(type === 'audio'){
-//             match.isOnlyAudio = true
-//         }else if(type === 'video'){
-//             match.isOnlyAudio = false
-//         } 
-//         const collection = client.db('db-name').collection('ContentMetaData');
-//         // const contentDocuments = await collection.find({ isOnlyAudio: type === 'audio'? true : false }).toArray();
-//         const contentDocuments = await collection.aggregate([
-//             {$match: match},
-//             {$lookup: {
-//                 from: 'userAccounts',
-//                 localField: 'owner',
-//                 foreignField: 'email',
-//                 as: 'user'
-//             }},
-//             {$unwind: '$user'}
-//         ]).toArray()
+const getAllContent = async (req, res) => {
+    const client = await new MongoClient(MONGO_URI, options);
+    let {type} = req.query
+    try {
+        await client.connect();
+        let match = {};
+        if(type === 'audio'){
+            match.isOnlyAudio = true
+        }else if(type === 'video'){
+            match.isOnlyAudio = false
+        } 
+        const collection = client.db('db-name').collection('ContentMetaData');
+        // const contentDocuments = await collection.find({ isOnlyAudio: type === 'audio'? true : false }).toArray();
+        const contentDocuments = await collection.aggregate([
+            {$match: match},
+            {$lookup: {
+                from: 'userAccounts',
+                localField: 'owner',
+                foreignField: 'email',
+                as: 'user'
+            }},
+            {$unwind: '$user'}
+        ]).toArray()
 
-//         res.json(contentDocuments);
-//     } catch (error) {
-//         console.error(error);
-//         return res.status(500).json({ message: 'Server error' });
-//     } finally {
-//         client.close();
-//     }
-// };
+        res.json(contentDocuments);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: 'Server error' });
+    } finally {
+        client.close();
+    }
+};
 
  const addTrackToAlbum = async (req, res) => {
     const client = new MongoClient(MONGO_URI, options);
@@ -3232,7 +3231,7 @@ module.exports = {
     deleteAlbum,
     postNewContentTypePropertyWithAttributes,
     getMostPlayedTracksByArtist,
-    // getAllContent,
+    getAllContent,
     getUserProfileById,
     addTrackToAlbum,
     getAlbum,
