@@ -9,6 +9,20 @@ const { Video } = require("@mux/mux-node");
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
+const ffmpeg = require("fluent-ffmpeg");
+const fs = require("fs");
+const path = require("path");
+const admin = require('firebase-admin');
+
+const base64EncodedKey = process.env.ENCODED_KEY;
+const decodedKey = JSON.parse(Buffer.from(base64EncodedKey, "base64").toString("utf-8"));
+
+admin.initializeApp({
+  credential: admin.credential.cert(decodedKey),
+  storageBucket: process.env.FIREBASE_STORAGEBUCKET,
+});
+
+const bucket = admin.storage().bucket();
 
 const {
   findSubscriptionByEmail,
@@ -176,6 +190,118 @@ const postContentMetaData = async (req, res) => {
         res.status(400).json({ status: 400, message: e.message })
     }
 }
+
+const uploadBufferToFirebase = async (filePath, firebasePath) => {
+
+    try {
+  
+      // Read the file as a buffer
+      const fileBuffer = fs.readFileSync(filePath);
+  
+      const file = bucket.file(firebasePath);
+      
+      // Create a reference to the location in Firebase Storage
+      const stream = file.createWriteStream({
+        resumable: true,
+        metadata: {
+          contentType: "video/mp4",
+        },
+      });
+  
+      stream.end(fileBuffer);
+  
+      return new Promise((resolve, reject) => {
+        stream.on("finish", async () => {
+  
+          // Get public URL or signed URL
+          const [url] = await file.getSignedUrl({
+            action: "read",
+            expires: "03-01-2099",
+          });
+          resolve(url);
+        });
+  
+        stream.on("error", (error) => {
+          console.error("Error uploading file:", error);
+          reject(error);
+        });
+      });
+    } catch (error) {
+      console.error("🚀 ~ uploadBufferToFirebase ~ error:", error);
+    }
+  };
+  
+  // Helper function to process and upload video streams
+  const processAndUploadVideo = async (file, videoId, userEmail) => {
+    const qualities = [240, 360, 480, 720, 1080];
+    const videoUrls = [];
+  
+    const payload = qualities.map((quality)=> {
+      return new Promise((resolve, reject) => {
+        const outputStream = `processed/${quality}.mp4`;
+  
+        ffmpeg(file.path)
+          .inputFormat('mp4') // Assuming the input buffer is MP4
+          .addOptions([
+            `-vf scale=-2:${quality}`,
+            "-preset veryfast",
+            "-g 48",
+            "-sc_threshold 0",
+            "-c:v libx264",
+            "-c:a aac",
+            "-ar 48000",
+            "-b:a 128k",
+            "-hls_time 4",
+            "-hls_playlist_type vod",
+          ])
+          .on("end", resolve)
+          .on("error", (e) => console.log(e))
+          .output(outputStream)
+          .run();
+      });
+    })
+    await Promise.all(payload);
+  
+    for (const quality of qualities) {
+      const firebasePath = `Uploads/${userEmail}/${videoId}_${quality}p`;
+      await uploadBufferToFirebase(`processed/${quality}.mp4`, firebasePath)
+      .then((url) => {
+        videoUrls.push({ quality, url });
+      })
+      .catch((e) => console.log(e));
+    }
+  
+    fs.unlinkSync(file.path);
+    const folderPath = 'processed/'
+    const files = fs.readdirSync(folderPath);
+  
+    // Loop through the files and delete each one
+    for (const file of files) {
+      const filePath = path.join(folderPath, file);
+      fs.unlinkSync(filePath);
+      console.log(`Deleted file: ${filePath}`);
+    }
+    return videoUrls;
+  };
+
+const uploadVideo = async (req, res) => {
+    const file = req.file;
+    console.log("filefile", file);
+    const { videoId, userEmail } = req.body;
+
+    if (!file) {
+      return res.status(400).send("No video file uploaded.");
+    }
+
+    try {
+      const videoUrls = await processAndUploadVideo(file, videoId, userEmail);
+      console.log("🚀 ~ .post ~ videoUrls:", videoUrls);
+      res.send({ message: "Video processed and uploaded.", urls: videoUrls });
+    } catch (error) {
+      console.log("🚀 ~ .post ~ error:", error);
+      res.status(500).send({ message: "Error processing video.", error });
+    }
+  }
 
 const getPreReviewedVideoList = async (req, res) => {
     const client = await new MongoClient(MONGO_URI, options);
@@ -3188,6 +3314,7 @@ const updateTrackViews = async (req, res) => {
 
 module.exports = {
     getServerHomePage,
+    uploadVideo,
     postContentMetaData,
     getPreReviewedVideoList,
     updateContentMetaData,

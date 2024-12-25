@@ -153,8 +153,65 @@ const Upload = ({
 
             const videoId = v4();
             const fileRef = ref(storage, `Uploads/${userEmail}/${videoId}`);
-            const metadata = { contentType: fileObj.data.type };
-            const uploadTask = uploadBytesResumable(fileRef, fileObj.data, metadata);
+
+            const call = await postContentMetaData(videoId, 'temp', fileObj.data.type.startsWith('audio/'), albumId);
+
+            if(fileObj.data.type.startsWith('video/')) {
+                
+                const formData = new FormData();
+                formData.append('video', fileObj.data);
+                formData.append('videoId', videoId);
+                formData.append('userEmail', userEmail);
+                const response = await axios.post(`${process.env.REACT_APP_API_BASE_URL}/upload/video`, formData,{ headers: { 'Content-Type': 'multipart/form-data'}})
+                if(!response || !response?.data) {
+                    setFileUploadStatus(prevStatus => ({
+                        ...prevStatus,
+                        [fileObj.data.name]: { uploading: false, error: true }
+                    }));
+                    return;
+                }
+
+                updatePartialContentMetaData(videoId, response.data.urls);
+                setFileUploadStatus(prevStatus => ({
+                    ...prevStatus,
+                    [fileObj.data.name]: { uploading: false, completed: true }
+                }));
+                updateFileProgress(fileObj.data.name, 100);
+
+            }
+            else {
+                const metadata = { contentType: fileObj.data.type };
+                const uploadTask = uploadBytesResumable(fileRef, fileObj.data, metadata);
+
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        setUploadProgress(prevProgress => ({
+                            ...prevProgress,
+                            [fileObj.data.name]: progress,
+                        }));
+                        updateFileProgress(fileObj.data.name, progress);
+                    }, 
+                    (error) => {
+                        console.error('Upload error:', error);
+                        setFileUploadStatus(prevStatus => ({
+                            ...prevStatus,
+                            [fileObj.data.name]: { uploading: false, error: true }
+                        }));
+                    }, 
+                    async () => {
+                        const fileUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                        console.log("File uploaded successfully:", fileUrl);
+                        updatePartialContentMetaData(videoId, fileUrl);
+    
+                        setFileUploadStatus(prevStatus => ({
+                            ...prevStatus,
+                            [fileObj.data.name]: { uploading: false, completed: true }
+                        }));
+                    }
+                );
+            }
+
             setFileUploadsArray(prevArray => {
                 const newArray = [...prevArray];
                 const index = newArray.findIndex(f => f.data.name === fileObj.data.name);
@@ -163,35 +220,6 @@ const Upload = ({
                 }
                 return newArray;
             });
-            const call = await postContentMetaData(videoId, 'temp', fileObj.data.type.startsWith('audio/'), albumId);
-
-            uploadTask.on('state_changed', 
-                (snapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    setUploadProgress(prevProgress => ({
-                        ...prevProgress,
-                        [fileObj.data.name]: progress,
-                    }));
-                    updateFileProgress(fileObj.data.name, progress);
-                }, 
-                (error) => {
-                    console.error('Upload error:', error);
-                    setFileUploadStatus(prevStatus => ({
-                        ...prevStatus,
-                        [fileObj.data.name]: { uploading: false, error: true }
-                    }));
-                }, 
-                async () => {
-                    const fileUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                    console.log("File uploaded successfully:", fileUrl);
-                    updatePartialContentMetaData(videoId, fileUrl);
-
-                    setFileUploadStatus(prevStatus => ({
-                        ...prevStatus,
-                        [fileObj.data.name]: { uploading: false, completed: true }
-                    }));
-                }
-            );
         };
 
         fileUploadsArray.forEach(fileObj => uploadFile(fileObj));
@@ -348,31 +376,39 @@ const Upload = ({
     return (
         <>
         {viewState === "initial" && (
-            <DropZone onDragOver={handleDragOver} onDrop={handleDrop}>
-                <h1 style={{ marginTop: '5vh' }}>Drop your music here: single tracks or whole albums.</h1>
-                <UploadStyledLabel>
-                    or choose files to upload
-                    <input type="file" accept="video/*, audio/*" onChange={handleFileChange} multiple />
-                </UploadStyledLabel>
-                <BottomContainer>
-                    <div style={{ zIndex: '21' }}>
-                        <input 
-                            type="checkbox" 
-                            id="createAlbumCheckbox"
-                            checked={createAlbum} 
-                            onChange={handleCheckboxChange}
-                            style={{ cursor: 'pointer' }}
-                        />
-                        <label 
-                            htmlFor="createAlbumCheckbox"
-                            style={{ cursor: 'pointer' }}
-                        >
-                            Create an Album Instantly with Multiple Selection
-                        </label>
-                    </div>
-                    <div>Mp4, Mov, Wav, or Mp3</div>
-                </BottomContainer>
-            </DropZone>
+             <StyledContainer>
+             <StyledContent>
+               <div className="max-width">
+                 <div className="section-title">Upload your audio/video files</div>
+                 <p className="description">To ensure the highest audio quality for your project, all uploaded files must meet the following technical standards:</p>
+                    <MainContainer>
+                        <StyledDropZone onDragOver={handleDragOver} onDrop={handleDrop}>
+                            <div className="upload-icon">
+                            <   svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{width:'4rem', height:'4rem'}} ><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" x2="12" y1="3" y2="15"></line></svg>
+                            </div>
+                            <div className="upload-text">Upload file to get started</div>
+                            <label className="upload-button">
+                                Choose files
+                                <input type="file" accept="video/*, audio/*" onChange={handleFileChange} multiple />
+                            </label>
+                        </StyledDropZone>
+                        <Guidelines>
+                            <div className="Guidelines-title">For Audio</div>
+                            <p className="Guidelines-description">File type: WAV, FLAC, AIFF</p>
+                            <p className="Guidelines-description">Bit depth: 16-bit min</p>
+                            <p className="Guidelines-description">Sample rate: 44.1 kHz min</p><br/>
+                            <div className="Guidelines-title">For Video</div>
+                            <p className="Guidelines-description" >File type: MP4</p>
+                            <p className="Guidelines-description">Highest resolution :)</p>
+                        </Guidelines>
+                    </MainContainer>
+                 <StyledCheckboxContainer>
+                   <input type="checkbox" id="createAlbumCheckbox" checked={createAlbum} onChange={handleCheckboxChange} />
+                   <label style={{margin:0}} htmlFor="createAlbumCheckbox">Create an Album Instantly with Multiple Selection</label>
+                 </StyledCheckboxContainer>
+               </div>
+             </StyledContent>
+           </StyledContainer>
         )}
 
         {viewState === "albumCreation" && (
@@ -473,6 +509,127 @@ const Upload = ({
 };
 
 export default Upload;
+
+const StyledContainer = styled.div`
+  min-height: 100vh;
+`;
+
+const MainContainer = styled.div`
+    display: flex;
+    align-items: start;
+    gap: 50px;
+
+    @media (max-width: 768px) {
+        align-items: center;
+        flex-direction: column;
+    }
+
+`;
+
+const StyledContent = styled.div`
+  padding: 0 32px;
+  .max-width {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+  .section-title {
+    margin-top: 48px;
+    font-size: 34px;
+    // font-family: 'Playfair Display', serif;
+    color: #63639C;
+    font-weight: 500;
+  }
+  .description {
+    color:rgb(61, 68, 77);
+    font-size: 18px;
+    line-height: 1.75;
+  }
+`;
+
+const StyledDropZone = styled.div`
+  border: 2px dashed #D1D5DB;
+  border-radius: 8px;
+  padding: 64px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  height: 300px;
+  width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 25px;
+  &:hover {
+    border-color: #63639C;
+  }
+  .upload-icon {
+    width: 64px;
+    height: 64px;
+    color: #63639C;
+  }
+  .upload-text {
+    font-size: 20px;
+    color:rgb(52, 57, 65);
+    font-weight: 500;
+    margin-top: 16px;
+  }
+  .upload-button {
+    background-color: #63639C;
+    color: white;
+    padding: 16px 32px;
+    font-size: 18px;
+    border-radius: 9999px;
+    margin-top: 24px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    &:hover {
+      background-color: rgba(99, 99, 156, 0.9);
+    }
+    input {
+      display: none;
+    }
+  }
+`;
+
+const Guidelines = styled.div`
+    margin: 0;
+    
+    .Guidelines-title {
+        margin: 30px 0px;
+        font-size: 24px;
+        // font-family: 'Playfair Display', serif;
+        color: #63639C;
+        font-weight: 500;
+    }
+
+    .Guidelines-description {
+        font-size: 16px;
+        color:rgb(61, 68, 77);
+
+    }
+`
+
+const StyledCheckboxContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 48px;
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #63639C;
+    border-radius: 4px;
+    cursor: pointer;
+    accent-color: #63639C;
+  }
+  label {
+    font-size: 18px;
+    color: #4B5563;
+    cursor: pointer;
+  }
+`;
 
 const DropZone = styled.div`
     --borderHeight: 215px; // Half the height of the image for top and bottom borders
