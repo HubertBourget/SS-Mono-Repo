@@ -114,7 +114,7 @@ ensureDir('processed');
 express()
   .use(cors({
     origin: ['https://staging.ss-mono-repo.pages.dev', 'http://localhost:3000', '*'],
-    methods: ["GET", "POST", "DELETE", "UPDATE", "PUT", "PATCH"],
+    methods: ["GET", "POST", "DELETE", "UPDATE", "PUT", "PATCH", "OPTIONS"],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true, // Allow credentials (cookies)
   }))
