@@ -120,6 +120,11 @@ express()
     optionsSuccessStatus: 204
   }))
   .options('*', cors())
+  .use((req, res, next) => {
+    console.log('Request headers:', req.headers);
+    console.log('Response headers:', res.getHeaders());
+    next();
+  })
   .use(express.json())
   .use(bodyParser.json({}))
   .use(cookieParser())
