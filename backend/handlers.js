@@ -92,24 +92,6 @@ const postNewUserWithAccountName = async (req, res) => {
 
             if (result.insertedId) {
                 console.log("User added to MongoDB successfully!");
-                if(isArtist){
-                    const beehiivSubscriber = await findSubscriptionByEmail(userId)
-                    if(beehiivSubscriber.status === 404){
-                        await createSubscription(email)
-                    }else{
-                        let findAndUpdated
-                        for(let field of beehiivSubscriber.custom_fields){
-                            if(field.name === 'artistSignedUp' && field.value == 'false'){
-                                await updateSubscription(beehiivSubscriber.id)
-                                findAndUpdated = true
-                            }
-                        }
-                        if(!findAndUpdated){
-                            await updateSubscription(beehiivSubscriber.id)
-                        }
-                        
-                    }
-                }
                 const sanitizedUserId = sanitizeUserId(userId);
                 await recombeeClient.send(new AddUser(sanitizedUserId));
                 res.status(200).json({ status: 200, result: result });
