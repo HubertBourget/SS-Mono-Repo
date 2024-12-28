@@ -2963,6 +2963,11 @@ const getArtistNames = async (req, res) => {
 
 //this endpoint store email on mongodb into a waitlist collection
 const storeEmailOnWaitlist = async (req, res) => {
+  // Handle preflight request
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   console.log("storeEmailOnWaitlist", req.body);
   const { email } = req.body;
   if (!email) {
