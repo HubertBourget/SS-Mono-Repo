@@ -2963,6 +2963,7 @@ const getArtistNames = async (req, res) => {
 
 //this endpoint store email on mongodb into a waitlist collection
 const storeEmailOnWaitlist = async (req, res) => {
+    console.log("storeEmailOnWaitlist", req.body);
   const { email } = req.body;
   if (!email) {
     return res.status(400).json({ error: "Email is required" });
