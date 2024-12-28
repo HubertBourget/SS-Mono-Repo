@@ -116,7 +116,8 @@ express()
     origin: ['https://staging.ss-mono-repo.pages.dev', 'http://localhost:3000', '*'],
     methods: ["GET", "POST", "DELETE", "UPDATE", "PUT", "PATCH", "OPTIONS"],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true, // Allow credentials (cookies)
+    credentials: true,
+    optionsSuccessStatus: 204
   }))
   .options('*', cors())
   .use(express.json())
