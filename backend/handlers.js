@@ -1,6 +1,6 @@
 const { MongoClient, ObjectId } = require("mongodb");
 require("dotenv").config();
-const { MONGO_URI, JWT_SECRET } = process.env;
+const { MONGO_URI, JWT_SECRET,REDIS_HOST, REDIS_PORT, REDIS_PASSWORD, REDIS_USER } = process.env;
 const { SyncRecombee } = require("./utils/SyncRecombee");
 const storage = require("./utils/googleCloudStorage");
 const { decryptData } = require("./utils/cardDetailsEncryption");
@@ -13,6 +13,7 @@ const ffmpeg = require("fluent-ffmpeg");
 const fs = require("fs");
 const path = require("path");
 const admin = require('firebase-admin');
+const { Queue, Worker } = require("bullmq");
 
 const base64EncodedKey = process.env.ENCODED_KEY;
 const decodedKey = JSON.parse(Buffer.from(base64EncodedKey, "base64").toString("utf-8"));
@@ -191,16 +192,139 @@ const postContentMetaData = async (req, res) => {
     }
 }
 
-const uploadBufferToFirebase = async (filePath, firebasePath) => {
-
-    try {
+const videoQueue = new Queue("video-processing", {
+    connection: {
+      host: "localhost",
+      port: 6379,
+    },
+  });
   
-      // Read the file as a buffer
+  // Upload Video API
+  const uploadVideo = async (req, res) => {
+    const file = req.file;
+    const { videoId, userEmail } = req.body;
+  
+    if (!file) {
+      return res.status(400).send("No video file uploaded.");
+    }
+  
+    try {
+      // Add job to the queue
+      await videoQueue.add("process-video", {
+        filePath: file.path,
+        videoId,
+        userEmail,
+      });
+  
+      res.send({ message: "Video upload in progress." });
+    } catch (error) {
+      console.log("Error adding job to queue:", error);
+      res.status(500).send({ message: "Error processing video.", error });
+    }
+  };
+  
+  // Worker to Process Jobs
+  const worker = new Worker(
+    "video-processing",
+    async (job) => {
+      const { filePath, videoId, userEmail } = job.data;
+      const qualities = [240, 360, 480, 720, 1080];
+      const videoUrls = [];
+  
+      try {
+        // Process and upload video for each quality
+        const payload = qualities.map((quality) => {
+          return new Promise((resolve, reject) => {
+            const outputStream = `processed/${quality}.mp4`;
+  
+            ffmpeg(filePath)
+              .inputFormat("mp4")
+              .addOptions([
+                `-vf scale=-2:${quality}`,
+                "-preset veryfast",
+                "-g 48",
+                "-sc_threshold 0",
+                "-c:v libx264",
+                "-c:a aac",
+                "-ar 48000",
+                "-b:a 128k",
+                "-hls_time 4",
+                "-hls_playlist_type vod",
+              ])
+              .on("end", resolve)
+              .on("error", reject)
+              .output(outputStream)
+              .run();
+          });
+        });
+  
+        await Promise.all(payload);
+  
+        for (const quality of qualities) {
+          const firebasePath = `Uploads/${userEmail}/${videoId}_${quality}p`;
+  
+          await uploadBufferToFirebase(`processed/${quality}.mp4`, firebasePath)
+            .then((url) => {
+              videoUrls.push({ quality, url });
+            })
+            .catch((e) => console.log(e));
+        }
+  
+        // Cleanup local files
+        fs.unlinkSync(filePath);
+        const folderPath = "processed/";
+        const files = fs.readdirSync(folderPath);
+  
+        for (const file of files) {
+          const filePath = path.join(folderPath, file);
+          fs.unlinkSync(filePath);
+        }
+  
+        // Update database
+        // await db.updateVideoUrls(videoId, videoUrls);
+        const client = await MongoClient.connect(MONGO_URI, options);
+        try {
+            const db = client.db("db-name");
+            const collection = db.collection("ContentMetaData");
+
+            const query = { videoId: videoId };
+            const update = { 
+                $set: {
+                    fileUrl: videoUrls,
+                }
+            };
+            const options = { returnOriginal: false };
+
+            await collection.findOneAndUpdate(query, update, options);
+        } catch (error) {
+            console.error(error);
+          
+        } finally {
+            client.close();
+        }
+  
+        return videoUrls;
+      } catch (error) {
+        console.error("Error processing video:", error);
+        throw error;
+      }
+    },
+    {
+      connection: {
+        host: REDIS_HOST,
+        port: REDIS_PORT,
+        password: REDIS_PASSWORD,
+        username: REDIS_USER
+      },
+    }
+  );
+  
+  // Firebase Upload Helper
+  const uploadBufferToFirebase = async (filePath, firebasePath) => {
+    try {
       const fileBuffer = fs.readFileSync(filePath);
   
       const file = bucket.file(firebasePath);
-      
-      // Create a reference to the location in Firebase Storage
       const stream = file.createWriteStream({
         resumable: true,
         metadata: {
@@ -212,8 +336,6 @@ const uploadBufferToFirebase = async (filePath, firebasePath) => {
   
       return new Promise((resolve, reject) => {
         stream.on("finish", async () => {
-  
-          // Get public URL or signed URL
           const [url] = await file.getSignedUrl({
             action: "read",
             expires: "03-01-2099",
@@ -227,9 +349,20 @@ const uploadBufferToFirebase = async (filePath, firebasePath) => {
         });
       });
     } catch (error) {
-      console.error("🚀 ~ uploadBufferToFirebase ~ error:", error);
+      console.error("Error in uploadBufferToFirebase:", error);
+      throw error;
     }
   };
+  
+  // Worker Event Listeners
+  worker.on("completed", (job) => {
+    console.log(`Job ${job.id} completed successfully.`);
+  });
+  
+  worker.on("failed", (job, err) => {
+    console.error(`Job ${job.id} failed:`, err);
+  });
+
   
   // Helper function to process and upload video streams
   const processAndUploadVideo = async (file, videoId, userEmail) => {
@@ -283,25 +416,6 @@ const uploadBufferToFirebase = async (filePath, firebasePath) => {
     }
     return videoUrls;
   };
-
-const uploadVideo = async (req, res) => {
-    const file = req.file;
-    console.log("filefile", file);
-    const { videoId, userEmail } = req.body;
-
-    if (!file) {
-      return res.status(400).send("No video file uploaded.");
-    }
-
-    try {
-      const videoUrls = await processAndUploadVideo(file, videoId, userEmail);
-      console.log("🚀 ~ .post ~ videoUrls:", videoUrls);
-      res.send({ message: "Video processed and uploaded.", urls: videoUrls });
-    } catch (error) {
-      console.log("🚀 ~ .post ~ error:", error);
-      res.status(500).send({ message: "Error processing video.", error });
-    }
-  }
 
 const getPreReviewedVideoList = async (req, res) => {
     const client = await new MongoClient(MONGO_URI, options);
