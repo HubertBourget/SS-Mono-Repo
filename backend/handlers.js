@@ -238,7 +238,7 @@ const videoQueue = new Queue("video-processing", {
                 "-hls_playlist_type vod",
               ])
               .on("end", resolve)
-              .on("error", reject)
+              .on("error", (err) => {console.log(err, 'err');reject()} )
               .output(outputStream)
               .run();
           });
