@@ -213,7 +213,7 @@ const videoQueue = new Queue("video-processing2", {
     async (job) => {
       const { filePath, videoId, userEmail } = job.data;
       console.log(`Processing video for ${videoId} by ${userEmail}`);
-      const qualities = [240, 360, 480, 720, 1080];
+      const qualities = [240, 360, 480, 720];
       const videoUrls = [];
   
       try {
