@@ -35,20 +35,25 @@ const useAudioPlayer = () => {
     }
     return "0:00";
   };
-  const setSongs = (songs) => {
-    
-    setState(prevState => {
-      const newState = {
+  const setSongs = (songs, index) => {
+    setState((prevState) => {
+      const rearrangedSongs = [
+        ...songs.slice(index), // Songs from the selected index to the end
+        ...songs.slice(0, index), // Songs from the start up to the selected index
+      ];
+  
+      return {
         ...prevState,
-        song: songs
+        song: rearrangedSongs,
+        currentSongIndex: 0, // Set the current song to the first in the rearranged list
       };
-      return newState;
     });
   };
+  
 
   const getCurrentSong = () => {
-    return state.song[state.currentSongIndex].id
-  }
+    return state.song[state.currentSongIndex]?.id;
+  };
 
   const getCurrentRunningStatus = () => {
     return state.playing

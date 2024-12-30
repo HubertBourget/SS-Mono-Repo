@@ -11,93 +11,93 @@ import PlayButton from "./common/PlayButton";
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 
-export default function SwipeComponent({ arr, recommId }) {  
+export default function SwipeComponent({ arr, recommId }) {
   const [artistNames, setArtistNames] = useState({});
   const navigate = useNavigate();
   const { userEmail } = useAuth();
 
   useEffect(() => {
-  const fetchArtistData = async () => {
+    const fetchArtistData = async () => {
     const emails = arr.map(content => content.owner.toLowerCase()).filter((v, i, a) => a.indexOf(v) === i);
-    
-    if (emails.length === 0) return; // Early exit if no emails
 
-    try {
+      if (emails.length === 0) return; // Early exit if no emails
+
+      try {
       const queryParams = new URLSearchParams({ emails: emails.join(',') });
-      
+
       const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/getUserProfilesByEmails?${queryParams}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      // Map data by email and set the state
-      const mappedArtistNames = {};
-      emails.forEach(email => {
-        if (data[email]) {
-          mappedArtistNames[email] = {
-            accountName: data[email].accountName || 'Unknown Artist',
-            id: data[email]._id || null, // Ensure that the `id` is mapped from `_id`
-          };
-        } else {
-          mappedArtistNames[email] = { accountName: 'Unknown Artist', id: null };
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-      });
 
-      setArtistNames(mappedArtistNames); // Update state
-    } catch (error) {
+        const data = await response.json();
+
+        // Map data by email and set the state
+        const mappedArtistNames = {};
+      emails.forEach(email => {
+          if (data[email]) {
+            mappedArtistNames[email] = {
+            accountName: data[email].accountName || 'Unknown Artist',
+              id: data[email]._id || null, // Ensure that the `id` is mapped from `_id`
+            };
+          } else {
+          mappedArtistNames[email] = { accountName: 'Unknown Artist', id: null };
+          }
+        });
+
+        setArtistNames(mappedArtistNames); // Update state
+      } catch (error) {
       console.error('Error fetching artist names:', error);
+      }
+    };
+
+    if (arr && arr.length > 0) {
+      fetchArtistData();
     }
-  };
+  }, [arr]);
 
-  if (arr && arr.length > 0) {
-    fetchArtistData();
-  }
-}, [arr]);
-
-const trackDetailView = async (itemId, recommId) => {
-  try {
+  const trackDetailView = async (itemId, recommId) => {
+    try {
     const response = await fetch(`${process.env.REACT_APP_API_BASE_URL}/api/trackInteraction`, {
       method: 'POST',
-      headers: {
+          headers: {
         'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userId: userEmail,
-        itemId: itemId,
+          },
+          body: JSON.stringify({
+            userId: userEmail,
+            itemId: itemId,
         type: 'detailView',
         recommId: recommId
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-  } catch (error) {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+    } catch (error) {
     console.error('Error tracking detail view:', error);
-  }
-};
+    }
+  };
 
-const handleContentPlay = (content) => {
+  const handleContentPlay = (content) => {
   console.log('Content play handler for:', content.title);
-};
+  };
 
-const handleArtistClick = async (content, e) => {
-  e.stopPropagation(); // Prevent event bubbling
-  const artistEmail = content.owner?.toLowerCase();
-  const artistData = artistNames[artistEmail];
+  const handleArtistClick = async (content, e) => {
+    e.stopPropagation(); // Prevent event bubbling
+    const artistEmail = content.owner?.toLowerCase();
+    const artistData = artistNames[artistEmail];
 
-  if (artistData?.id) {
-    navigate(`/main/artist?id=${artistData.id}`);
-  } else {
+    if (artistData?.id) {
+      navigate(`/main/artist?id=${artistData.id}`);
+    } else {
     console.log('Artist ID not found.');
-  }
-};
+    }
+  };
 
   return (
     <Discography>
@@ -124,44 +124,45 @@ const handleArtistClick = async (content, e) => {
       >
         {arr.map((content) => {
   const thumbnail = content?.selectedImageThumbnail?.length > 0
-    ? content.selectedImageThumbnail
-    : rect;
+              ? content.selectedImageThumbnail
+              : rect;
 
-  return (
-    <SwiperSlide key={content._id}>
+          return (
+            <SwiperSlide key={content._id}>
       <div className="item" id="content-card" onClick={() => handleContentPlay(content)} style={{ cursor: 'pointer' }}>
         <img className="swiper-thumb-img" src={thumbnail} alt="Item Thumb" />
         <div style={{ marginLeft: 0, display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
-          <div>
+                  <div>
             <h1 className="slider-trackname">{content.contentType !== 'AlbumMetaData' ? content.title : content.albumName}</h1>
-            <h1 className="slider-artist">
-              <span
-                onClick={(e) => handleArtistClick(content, e)}
+                    <h1 className="slider-artist">
+                      <span
+                        onClick={(e) => handleArtistClick(content, e)}
                 style={{ textDecoration: 'underline', cursor: 'pointer' }}
-              >
+                      >
                 {artistNames[content.owner?.toLowerCase()]?.accountName || 'Unknown Artist'}
-              </span>
-            </h1>
-          </div>
+                      </span>
+                    </h1>
+                  </div>
           <div style={{ display: 'inline', marginRight: '20px' }}>
-            {(content.contentType === 'audio' || content.contentType === 'video' || content.contentType === 'recommendation') && (
-              <PlayButton
-                track={{
-                  id: content._id,
-                  songUrl: content.fileUrl,
-                  songTitle: content.title,
+            {(content.contentType === 'audio' || content.contentType === 'video' || content.contentType === 'recommendation'|| content.contentType === 'ContentMetaData') && (
+                      <PlayButton
+                        track={{
+                          id: content._id,
+                          songUrl: content.fileUrl,
+                          songTitle: content.title,
                   isVideo: content.contentType === 'video',
-                  artistName: content.videoOwner,
-                  img: content.selectedImageThumbnail,
-                }}
-              />
-            )}
-          </div>
-        </div>
-      </div>
-    </SwiperSlide>
-  );
-})}
+                          artistName: content.videoOwner,
+                          img: content.selectedImageThumbnail,
+                        }}
+                        songsList={arr}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </SwiperSlide>
+          );
+        })}
 
 
       </Swiper>
