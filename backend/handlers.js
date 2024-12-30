@@ -58,92 +58,6 @@ const getServerHomePage = async (req, res) => {
     res.status(200).json({status: 200, message:`Sacred Sound Studio Back End Server is currently up and running!`});
 };
 
-const postNewUserWithAccountName = async (req, res) => {
-    const { email, accountName, isArtist, timestamp } = req.body;
-    const contentType = "userAccounts";
-    const user = {
-        email,
-        accountName,
-        isArtist,
-        timestamp,
-        contentType: contentType,
-    };
-
-    const client = await new MongoClient(MONGO_URI, options);
-    try {
-        const { recombeeClient } = require("./utils/recombeeClient");
-        client.connect();
-        const db = client.db("db-name");
-
-        // First try-catch block for MongoDB operations
-        try {
-            // Add the user to Recombee
-            const userId = email;
-            
-            const oldUser = await db.collection("userAccounts").findOne({email: userId})
-            if(oldUser){
-                return res.status(409).json({
-                    status: 409,
-                    message: "User already created.",
-                });
-            }
-            // Continue with MongoDB operations (inserting the user)
-            const result = await db.collection("userAccounts").insertOne(user);
-
-            if (result.insertedId) {
-                console.log("User added to MongoDB successfully!");
-                const sanitizedUserId = sanitizeUserId(userId);
-                await recombeeClient.send(new AddUser(sanitizedUserId));
-                res.status(200).json({ status: 200, result: result });
-            } else {
-                console.log("Failed to create user in MongoDB.");
-                res.status(400).json({
-                    status: 400,
-                    message: "Failed to create user in MongoDB.",
-                });
-            }
-        } catch (mongoError) {
-            console.error("Error in MongoDB operations:", mongoError.message);
-            console.error("Error details:", mongoError);
-
-            // Continue with appropriate response to the client
-            res.status(500).json({ status: 500, message: "Internal server error" });
-        }
-
-        // Second try-catch block for Recombee operations
-        try {
-            // Set values for the user properties
-            const userId = email;
-            const userProperties = {
-                accountName: accountName,
-                isArtist: isArtist,
-                timestamp: timestamp,
-                currentOnBoardingStep : 0,
-                isOnboardingStepsPending : true,
-            };
-
-            // Create a SetUserValues request with both the user ID and properties
-            const sanitizedUserId = sanitizeUserId(userId);
-            const setUserValuesRequest = new SetUserValues(sanitizedUserId, userProperties);
-
-            // Send the request to set user values
-            await recombeeClient.send(setUserValuesRequest);
-
-            console.log("User properties added to Recombee successfully!");
-        } catch (recombeeError) {
-            console.error("Error in Recombee operations:", recombeeError.message);
-            console.error("Error details:", recombeeError);
-            // Log the error, but continue with the function execution
-        }
-    } catch (mainError) {
-        console.error("Error in the main function:", mainError.message);
-        // Continue with appropriate response to the client
-        res.status(500).json({ status: 500, message: "Internal server error" });
-    } finally {
-        client.close();
-    }
-};
-
 const postContentMetaData = async (req, res) => {
     const { owner, videoId, timestamp,  fileUrl, b_isPreparedForReview, b_hasBeenReviewed, b_isApproved, isOnlyAudio, visibility, category } = req.body;
     const ContentMetaData = {
@@ -3314,7 +3228,6 @@ module.exports = {
     getCheckAccountName,
     getContentById,
     b_getUserExist,
-    postNewUserWithAccountName,
     getContentByArtist,
     getApprovedVideoContent,
     deleteContent,

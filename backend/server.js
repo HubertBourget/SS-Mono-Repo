@@ -16,7 +16,6 @@ const {
   getCheckAccountName,
   getContentById,
   b_getUserExist,
-  postNewUserWithAccountName,
   getContentByArtist,
   getApprovedVideoContent,
   deleteContent,
@@ -141,7 +140,6 @@ express()
   .post("/api/postCreateImageThumbnail", CreateImageThumbnail)
   .get("/api/getContentById", getContentById)
   .get("/api/b_getUserExist/:userId", b_getUserExist)
-  .post("/api/postNewUserWithAccountName", postNewUserWithAccountName)
   .get("/api/getContentByArtist", getContentByArtist)
   .get("/api/getMostPlayedTracksByArtist", getMostPlayedTracksByArtist)
   .get("/api/getApprovedVideoContent", getApprovedVideoContent)
