@@ -191,6 +191,7 @@ const videoQueue = new Queue("video-processing", {
     if (!file) {
       return res.status(400).send("No video file uploaded.");
     }
+    console.log(videoQueue)
   
     try {
       // Add job to the queue
