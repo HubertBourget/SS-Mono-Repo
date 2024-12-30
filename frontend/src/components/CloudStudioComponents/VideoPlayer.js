@@ -101,7 +101,7 @@ const VideoPlayer = () => {
     if (connection) {
       // Adjust quality based on network speed
       if (connection.effectiveType === "5g" || connection.downlink >= 10) {
-        setQuality(1080);
+        setQuality(720);
       } else if (
         connection.effectiveType === "4g" ||
         connection.downlink >= 3
