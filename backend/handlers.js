@@ -260,14 +260,14 @@ const videoQueue = new Queue("video-processing2", {
         }
   
         // Cleanup local files
-        fs.unlinkSync(filePath);
-        const folderPath = "processed/";
-        const files = fs.readdirSync(folderPath);
+        // fs.unlinkSync(filePath);
+        // const folderPath = "processed/";
+        // const files = fs.readdirSync(folderPath);
   
-        for (const file of files) {
-          const filePath = path.join(folderPath, file);
-          fs.unlinkSync(filePath);
-        }
+        // for (const file of files) {
+        //   const filePath = path.join(folderPath, file);
+        // //   fs.unlinkSync(filePath);
+        // }
   
         // Update database
         // await db.updateVideoUrls(videoId, videoUrls);
@@ -349,7 +349,8 @@ const videoQueue = new Queue("video-processing2", {
   });
 
   worker.on('active', (job) => {
-    console.log(`Job ${job.id} is now active.`);
+    console.log(`Job ${job.id} is now active.`, job);
+    console.log(fs.readdirSync('uploads'))
   })
 
   worker.on('error', (err) => {
