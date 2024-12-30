@@ -174,7 +174,7 @@ const postContentMetaData = async (req, res) => {
     }
 }
 
-const videoQueue = new Queue("video-processing", {
+const videoQueue = new Queue("video-processing2", {
     connection: {
         host: REDIS_HOST,
         port: REDIS_PORT,
@@ -195,7 +195,7 @@ const videoQueue = new Queue("video-processing", {
   
     try {
       // Add job to the queue
-      await videoQueue.add("process-video", {
+      await videoQueue.add("video-processing2", {
         filePath: file.path,
         videoId,
         userEmail,
@@ -210,7 +210,7 @@ const videoQueue = new Queue("video-processing", {
   
   // Worker to Process Jobs
   const worker = new Worker(
-    "video-processing",
+    "video-processing2",
     async (job) => {
       const { filePath, videoId, userEmail } = job.data;
       console.log(`Processing video for ${videoId} by ${userEmail}`);
