@@ -171,7 +171,6 @@ const Upload = ({
                     return;
                 }
 
-                updatePartialContentMetaData(videoId, response.data.urls);
                 setFileUploadStatus(prevStatus => ({
                     ...prevStatus,
                     [fileObj.data.name]: { uploading: false, completed: true }
