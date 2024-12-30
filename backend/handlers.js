@@ -194,8 +194,10 @@ const postContentMetaData = async (req, res) => {
 
 const videoQueue = new Queue("video-processing", {
     connection: {
-      host: "localhost",
-      port: 6379,
+        host: REDIS_HOST,
+        port: REDIS_PORT,
+        password: REDIS_PASSWORD,
+        username: REDIS_USER
     },
   });
   
