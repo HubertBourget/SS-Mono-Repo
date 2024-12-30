@@ -212,6 +212,7 @@ const videoQueue = new Queue("video-processing", {
     "video-processing",
     async (job) => {
       const { filePath, videoId, userEmail } = job.data;
+      console.log(`Processing video for ${videoId} by ${userEmail}`);
       const qualities = [240, 360, 480, 720, 1080];
       const videoUrls = [];
   
@@ -243,12 +244,15 @@ const videoQueue = new Queue("video-processing", {
         });
   
         await Promise.all(payload);
+        console.log("Processing job:", job.data);
+
   
         for (const quality of qualities) {
           const firebasePath = `Uploads/${userEmail}/${videoId}_${quality}p`;
   
           await uploadBufferToFirebase(`processed/${quality}.mp4`, firebasePath)
             .then((url) => {
+                console.log(`Uploaded ${quality}p video to Firebase: ${url}`);  
               videoUrls.push({ quality, url });
             })
             .catch((e) => console.log(e));
