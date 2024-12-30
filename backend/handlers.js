@@ -347,7 +347,19 @@ const videoQueue = new Queue("video-processing", {
   worker.on("completed", (job) => {
     console.log(`Job ${job.id} completed successfully.`);
   });
-  
+
+  worker.on('active', (job) => {
+    console.log(`Job ${job.id} is now active.`);
+  })
+
+  worker.on('error', (err) => {
+    console.log(`error: ${err}`);
+  })
+
+  worker.on('closed', (err) => {
+    console.log(`error: ${err}`, err);
+  })
+
   worker.on("failed", (job, err) => {
     console.error(`Job ${job.id} failed:`, err);
   });
