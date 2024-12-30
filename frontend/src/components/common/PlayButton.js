@@ -1,17 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import styled from "styled-components";
 import { usePlayingContext } from "../../pageComponents/NowPlaying";
 import Pause from "../../assets/pause.svg";
 import Play from "../../assets/playicon.svg";
 import { useAuth } from '../../context/AuthContext'; // Import your custom useAuth hook
 
-export default function PlayButton({ track, large }) {
+export default function PlayButton({ track, songsList, large }) {
   const { userEmail } = useAuth(); // Use the custom hook to get the user's email
   const currentSong = usePlayingContext(state => state.getCurrentSong);
   const setSongs = usePlayingContext(state => state.setSongs);
   const playingStatus = usePlayingContext(state => state.state);
   const [playButton, setPlay] = useState(true);
-
+  const trackIndex = songsList.findIndex((song) => song._id === track.id);
+  
   useEffect(() => {
     if (track.id !== currentSong()) {
       setPlay(true);
@@ -27,28 +28,21 @@ export default function PlayButton({ track, large }) {
   const onPlay = (event) => {
     event.stopPropagation();
     setPlay(!playButton);
-    setSongs([{
-      id: track.id,
-      songUrl: track.songUrl,
-      songTitle: track.title,
-      isVideo: track.isVideo,
-      artistName: track.accountName,
-      img: track.selectedImageThumbnail,
-    }], 0);
+    setSongs(songsList, trackIndex);
     addToPlaybackHistory();
   };
 
   async function addToPlaybackHistory() {
     fetch(`${process.env.REACT_APP_API_BASE_URL}/api/updateUserPlaybackHistory`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify({
-        user: userEmail,
-        videoId: track.id,
-      }),
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          user: userEmail,
+          videoId: track.id,
+        }),
     })
       .then((res) => res.json())
       .then((data) => console.log(data));
