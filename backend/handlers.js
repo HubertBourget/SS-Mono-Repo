@@ -191,7 +191,6 @@ const videoQueue = new Queue("video-processing2", {
     if (!file) {
       return res.status(400).send("No video file uploaded.");
     }
-    console.log(videoQueue)
   
     try {
       // Add job to the queue
@@ -220,6 +219,7 @@ const videoQueue = new Queue("video-processing2", {
       try {
         // Process and upload video for each quality
         // const payload = qualities.map((quality) => {
+            for(let quality of qualities){
           await new Promise((resolve, reject) => {
             const outputStream = `processed/${quality}.mp4`;
   
@@ -241,7 +241,7 @@ const videoQueue = new Queue("video-processing2", {
               .on("error", (err) => {console.log(err, 'err');reject()} )
               .output(outputStream)
               .run();
-          });
+          });}
         // });
   
         // await Promise.all(payload);
