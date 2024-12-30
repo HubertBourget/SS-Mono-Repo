@@ -219,8 +219,8 @@ const videoQueue = new Queue("video-processing2", {
   
       try {
         // Process and upload video for each quality
-        const payload = qualities.map((quality) => {
-          return new Promise((resolve, reject) => {
+        // const payload = qualities.map((quality) => {
+          await new Promise((resolve, reject) => {
             const outputStream = `processed/${quality}.mp4`;
   
             ffmpeg(filePath)
@@ -242,9 +242,9 @@ const videoQueue = new Queue("video-processing2", {
               .output(outputStream)
               .run();
           });
-        });
+        // });
   
-        await Promise.all(payload);
+        // await Promise.all(payload);
         console.log("Processing job:", job.data);
 
   
@@ -261,13 +261,13 @@ const videoQueue = new Queue("video-processing2", {
   
         // Cleanup local files
         // fs.unlinkSync(filePath);
-        // const folderPath = "processed/";
-        // const files = fs.readdirSync(folderPath);
+        const folderPath = "processed/";
+        const files = fs.readdirSync(folderPath);
   
-        // for (const file of files) {
-        //   const filePath = path.join(folderPath, file);
-        // //   fs.unlinkSync(filePath);
-        // }
+        for (const file of files) {
+          const filePath = path.join(folderPath, file);
+          fs.unlinkSync(filePath);
+        }
   
         // Update database
         // await db.updateVideoUrls(videoId, videoUrls);
